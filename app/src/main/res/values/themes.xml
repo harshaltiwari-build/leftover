@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Leftover" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_ground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- The system splash stays plain (ivory, or the dark ground at night); the Compose launch animation draws the logo. -->
+    <style name="Theme.Leftover.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_ground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+        <item name="postSplashScreenTheme">@style/Theme.Leftover</item>
+    </style>
+</resources>

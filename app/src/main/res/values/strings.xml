@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Leftover</string>
+    <string name="widget_left_label">Left to spend</string>
+    <string name="widget_left_description">What you can spend before payday, with one-tap add buttons.</string>
+    <string name="widget_quick_label">Quick log</string>
+    <string name="widget_quick_description">One-tap buttons for the spends you repeat, like chai or a cab.</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ivory">#F8F8F2</color>
+    <!-- What shows before the first frame is drawn: ivory by day, the dark ground by night. -->
+    <color name="window_ground">#F8F8F2</color>
+    <color name="ic_launcher_background">#D3F67A</color>
+</resources>
