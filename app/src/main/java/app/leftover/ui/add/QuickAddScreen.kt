@@ -182,7 +182,7 @@ fun QuickAddScreen(
                 AccountRow("To", spendAccounts.filter { it.id != fromAccount?.id }.map { it.id to it.name }, toAccount?.id) { toAccountId = it }
             }
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Today" to 0, "Yesterday" to 1, "2 days ago" to 2).forEach { (label, days) -> Chip(label, daysAgo == days, { daysAgo = days }, icon = if (daysAgo == days) LeftoverIcons.Calendar else null) }
                 val custom = daysAgo > 2
                 Chip(if (custom) UiFormat.dayMonth(LocalDate.now().minusDays(daysAgo.toLong())) else "Other date", custom, { pickingDate = true }, icon = LeftoverIcons.Calendar)

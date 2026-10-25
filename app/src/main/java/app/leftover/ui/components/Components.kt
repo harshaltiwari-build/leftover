@@ -194,7 +194,8 @@ fun Chip(
         horizontalArrangement = Arrangement.spacedBy(6.dp, if (center) Alignment.CenterHorizontally else Alignment.Start),
     ) {
         if (icon != null) Icon(icon, null, tint = fg, modifier = Modifier.size(16.dp))
-        Text(text, style = Type.captionBold, color = fg, maxLines = 2, textAlign = if (center) TextAlign.Center else TextAlign.Start)
+        // One line normally; at large text sizes the label may use two, but never breaks inside a word on a single-line chip.
+        Text(text, style = Type.captionBold, color = fg, maxLines = if (LocalDensity.current.fontScale >= 1.3f) 2 else 1, softWrap = LocalDensity.current.fontScale >= 1.3f, textAlign = if (center) TextAlign.Center else TextAlign.Start)
     }
 }
 
