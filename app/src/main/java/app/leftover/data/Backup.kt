@@ -24,6 +24,7 @@ import app.leftover.data.db.SettlementEntity
 import app.leftover.data.db.SharedExpenseEntity
 import app.leftover.data.db.SplitShareEntity
 import app.leftover.data.db.TransactionEntity
+import app.leftover.data.db.TxFeeling
 import app.leftover.data.db.TxSource
 import app.leftover.data.db.TxType
 import app.leftover.data.db.WishEntity
@@ -108,6 +109,7 @@ object BackupCodec {
                 .putOpt("toAccountId", t.toAccountId).putOpt("categoryId", t.categoryId).putOpt("goalId", t.goalId)
                 .put("merchant", t.merchant).put("note", t.note).put("occurredAt", t.occurredAt).put("splitOthers", t.splitOthers)
                 .put("excludeFromBudgets", t.excludeFromBudgets).put("source", t.source.name).put("createdAt", t.createdAt)
+                .putOpt("feeling", t.feeling?.name)
         })
         put("goals", array(data.goals) { g ->
             JSONObject().put("id", g.id).put("name", g.name).put("target", g.target).put("perCycle", g.perCycle).put("cover", g.cover)
@@ -200,7 +202,8 @@ object BackupCodec {
                 transactions = list(root, "transactions") { o ->
                     TransactionEntity(o.getLong("id"), enumOf(o.getString("type"), TxType.EXPENSE), o.getLong("amount"), o.getLong("accountId"),
                         o.longOrNull("toAccountId"), o.longOrNull("categoryId"), o.longOrNull("goalId"), o.optString("merchant"), o.optString("note"),
-                        o.getLong("occurredAt"), o.optLong("splitOthers"), o.optBoolean("excludeFromBudgets"), enumOf(o.optString("source"), TxSource.MANUAL), o.optLong("createdAt"))
+                        o.getLong("occurredAt"), o.optLong("splitOthers"), o.optBoolean("excludeFromBudgets"), enumOf(o.optString("source"), TxSource.MANUAL), o.optLong("createdAt"),
+                        feeling = o.optString("feeling").takeIf { it.isNotEmpty() }?.let { name -> TxFeeling.entries.firstOrNull { it.name == name } })
                 },
                 goals = list(root, "goals") { o ->
                     GoalEntity(o.getLong("id"), o.getString("name"), o.getLong("target"), o.getLong("perCycle"), o.getString("cover"),

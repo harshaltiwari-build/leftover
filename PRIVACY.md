@@ -73,7 +73,7 @@ Bills due, payday, budget limits and a Sunday check-in are each off until you sw
 
 ## App lock and the app switcher
 
-**App lock** uses your phone's own fingerprint, face or screen lock, through Android's biometric prompt. Leftover keeps no PIN of its own. **Hide in the app switcher** blanks the preview in recent apps (on Android 12 and older it does this by blocking screenshots).
+**App lock** uses your phone's own fingerprint, face or screen lock, through Android's biometric prompt. You can also set a **Leftover PIN** (4–6 digits): only a salted PBKDF2-HMAC-SHA256 hash of it is stored, never the PIN, along with a count of wrong tries so the pad can make you wait after five. The PIN is not part of backups. **Hide in the app switcher** blanks the preview in recent apps (on Android 12 and older it does this by blocking screenshots).
 
 ## Entries from other apps
 
@@ -92,6 +92,10 @@ If you switch on **Accept entries from other apps**, a `leftover://capture` link
 
 **Import a bank statement** reads a CSV file you choose, on the phone, shows a preview, and saves nothing until you tap Import.
 
-## Later features
+## Payment screenshots and receipt photos (v0.6)
 
-Scanning receipts is planned. It will be opt-in and processed on the device, and will be documented here before it ships.
+- **Sharing a screenshot to Leftover** (from Google Pay, PhonePe, Paytm, your gallery or anywhere with a Share button) reads its text **on the phone** with Tesseract, an open-source text recogniser built into the app with its English model. Nothing is uploaded; the app still has no internet permission. Leftover picks out the amount, who was paid, the date and time and the UPI reference, and opens Quick add for you to check. **Nothing is saved until you tap Save.**
+- The recognised text itself is not stored, only the fields you save. A temporary full-size copy used for reading is deleted straight after.
+- The screenshot is kept as the entry's **receipt photo**, shrunk, in the app's private folder, where other apps can't see it. Remove it from Quick add or the transaction's page. Photos you remove, or that belong to deleted entries, are cleaned up the next time the app opens.
+- Receipt photos are **not part of backup files**, and **Delete everything** removes them.
+- Taking a receipt photo uses your camera app through Android's own "take a picture" screen, so Leftover doesn't hold the camera permission.

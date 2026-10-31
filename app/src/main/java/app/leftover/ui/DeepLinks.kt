@@ -23,6 +23,11 @@ object DeepLinks {
             "plan" -> Routes.PLAN
             "checkin" -> Routes.CHECKIN
             "afford" -> Routes.AFFORD
+            "reports" -> Routes.REPORTS
+            "ask" -> Routes.ASK
+            "insights" -> Routes.INSIGHTS
+            "activity" -> Routes.ACTIVITY
+            "backup" -> Routes.BACKUP
             else -> null
         }
     }

@@ -1,6 +1,6 @@
 # Roadmap
 
-The full design has 45+ screens. v0.1 shipped the core, v0.2 added widgets and voice, and v0.3 added Split, v0.4 added automatic tracking from bank texts, and v0.5 adds the money-you-owe tools, reminders, app lock and encrypted backups; the rest is staged so each release is usable and honest: **nothing appears in the app until it works.**
+The full design has 45+ screens. v0.1 shipped the core, v0.2 added widgets and voice, and v0.3 added Split, v0.4 added automatic tracking from bank texts, v0.5 added the money-you-owe tools, reminders, app lock and encrypted backups, and v0.6 adds reports, Ask and most of the remaining design; the rest is staged so each release is usable and honest: **nothing appears in the app until it works.**
 
 ## v0.1: core (shipped)
 
@@ -12,7 +12,7 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] **Voice entry**: Android `SpeechRecognizer` (on-device when available) plus a typed fallback; understands amounts like "1,250", "2k", "1.5 lakh" and "twelve hundred", dates like "yesterday", and always shows an editable review before saving.
 - [ ] Lock-screen widgets (only Android 14+ tablets support them) and a widget configuration screen.
 - [x] **Hindi speech and Hinglish.** Pick English or Hindi in Settings → Appearance and language; the parser knows Hindi number words and Devanagari digits.
-- [ ] **Receipt and UPI-screenshot capture**: CameraX plus on-device ML Kit text recognition, confidence shown, items splittable across categories.
+- [x] **UPI-screenshot capture** (v0.6): share a screenshot to Leftover and it's read on the phone with Tesseract (open source). Item-by-item receipt splitting is still to come.
 - [x] **Statement import (CSV)**: column mapping, date format, preview, duplicate flags, nothing saved until you tap Import.
 - [ ] PDF statements, automatic transfer detection on import, and per-row duplicate decisions.
 
@@ -23,7 +23,7 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] **Settle up** by opening your UPI app with the payee, amount and note filled in, then asking "Did the payment go through?". The app never assumes a payment succeeded. Cash and "paid another way" are recorded directly, and a friend paying you is recorded by hand (Android has no way to request money).
 - [x] **Groups** for flatmates, trips and events: group total and your share, an optional budget for trips and events, spending by category, who owes whom, and the fewest payments to settle.
 - [x] Money friends owe you shows as *Coming back* and is **not** counted in Left to spend until they pay.
-- [ ] Trip and event dates, and archiving or deleting a group.
+- [x] Trip and event dates, and archiving a group (v0.6). Deleting a group is still not built.
 - [ ] Editing a split bill (today: delete it and add it again).
 - [x] **Repeating shared bills** such as rent: turn on "Repeat every month" when splitting equally and Leftover adds the split again on its day.
 - [ ] Settling a group payment that doesn't involve you. Only your own payments are tracked.
@@ -55,14 +55,28 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] **Settings** regrouped into Your money, Add entries automatically, Reminders, Keep your data safe and Look and language, with sub-screens for Money rhythm, Appearance and language, Privacy and permissions, About and Delete.
 - [x] Large-text pass on shared components (buttons, list rows, chips and segmented controls wrap instead of clipping).
 
+## v0.6: reports, ask, and the rest of the design
+
+- [x] **Reports for any period** with presets and a date picker, money in vs out, a category donut, a table view for every chart, and **PDF / CSV export**.
+- [x] **Needed · Worth it · Regret** on each spend, added up in Reports, with a Regrets filter on Activity.
+- [x] **Ask about your money**, on-device and rule-based, always showing the transactions behind each answer.
+- [x] **Share a payment screenshot to add an expense**: read on the phone with Tesseract (Apache-2.0), amount, payee, date, time and UPI ref filled in, category guessed from past spends, failed / pending payments and likely duplicates flagged. Also from "Read a payment screenshot" in Quick add.
+- [x] **Receipt photo attachment** (camera or gallery) and a "Has receipt" filter.
+- [x] **Swipe to delete with Undo** and sticky day headers on Activity.
+- [x] **Recap shared as an image**, respecting "Hide amounts when sharing".
+- [x] **Leftover PIN** with lockout, usable on phones without a screen lock.
+- [x] **Trip and event dates**, a **My share / Whole group** toggle and **archiving** on group screens.
+- [x] **Widget quick-entry sheet** over the launcher and a **today-spent line** on the Left to spend widget.
+- [x] **Launcher shortcuts**, **pure black** dark mode, **"log today"** and **backup** reminders.
+
 ## Not built, on purpose or not yet
 
-- [ ] **Receipt and UPI-screenshot capture.** Text recognition needs a library. Google's ML Kit is closed-source, which F-Droid and this project's rules rule out; Tesseract is open source but heavy. A photo-attachment-only version (no reading) is possible.
-- [ ] **Splitting one transaction across several categories**, and **swipe actions** on Activity rows.
+- [ ] **Reading shop receipts line by line** and splitting their items across categories. Payment screenshots are read since v0.6 (Tesseract, on the phone); paper receipts are harder to read reliably.
+- [ ] **Splitting one transaction across several categories.**
+- [ ] **Encrypting the database itself** (SQLCipher with a Keystore-held key, migrating the existing file). Backups are already encrypted.
 - [ ] **Cycle switch** (payday / weekly / monthly) on Budgets.
-- [ ] **Trip dates, a "my share / whole group" toggle and a linked goal** on group screens.
-- [ ] **"Ask about your money."** The design shows an assistant that answers questions. It can't use an online model without an internet permission; an on-device, rule-based version that always shows the transactions behind each answer is a possible shape and needs a decision.
-- [ ] A widget quick-entry sheet over the launcher, a bill-reminder widget and a today-spent line on the small widget.
+- [ ] **A linked goal** on trip screens.
+- [ ] A bill-reminder widget and lock-screen widgets.
 - [ ] Remind or message a friend. Leftover has no way to contact anyone.
 
 ## Also planned

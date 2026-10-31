@@ -5,6 +5,7 @@ import app.leftover.data.LeftoverRepository
 import app.leftover.data.SettingsRepository
 import app.leftover.data.db.LeftoverDatabase
 import app.leftover.domain.ReminderPrefs
+import app.leftover.notify.DailyLogScheduler
 import app.leftover.notify.ReminderScheduler
 import app.leftover.sms.SmsIngestor
 import app.leftover.sms.SmsNotifier
@@ -33,9 +34,13 @@ class LeftoverApp : Application() {
         super.onCreate()
         // Reminders run on a daily schedule while any of them is switched on.
         appScope.launch {
-            settings.settings.map { ReminderPrefs(it.billReminders, it.paydayReminder, it.budgetAlerts, it.weeklyCheckIn) }.distinctUntilChanged()
+            settings.settings.map { ReminderPrefs(it.billReminders, it.paydayReminder, it.budgetAlerts, it.weeklyCheckIn, it.backupReminder) }.distinctUntilChanged()
                 .collect { ReminderScheduler.sync(this@LeftoverApp, it) }
         }
+        appScope.launch {
+            settings.settings.map { it.dailyLog }.distinctUntilChanged().collect { DailyLogScheduler.sync(this@LeftoverApp, it) }
+        }
+        Shortcuts.publish(this)
         // Keep the home-screen widgets in step with the data: redraw whenever what they show changes.
         appScope.launch {
             repository.snapshot.map { WidgetModel.from(it) }.distinctUntilChanged().debounce(400).collect { Widgets.refreshAll(this@LeftoverApp) }

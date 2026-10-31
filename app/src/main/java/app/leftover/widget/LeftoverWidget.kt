@@ -75,8 +75,8 @@ private fun LeftContent(model: WidgetModel) {
         return
     }
 
-    val addExpense = actionStartActivity(Widgets.open(context, Routes.add("Expense")))
-    val addIncome = actionStartActivity(Widgets.open(context, Routes.add("Income")))
+    val addExpense = actionStartActivity(Widgets.add(context, "Expense", model.locked))
+    val addIncome = actionStartActivity(Widgets.add(context, "Income", model.locked))
     val wide = size.width >= 220.dp
     val tall = size.height >= 220.dp
 
@@ -140,6 +140,9 @@ private fun Summary(model: WidgetModel) {
         if (model.hidden) "Hidden · tap to open" else "${Money.format(model.perDay)}/day · ${model.daysToPayday} ${if (model.daysToPayday == 1) "day" else "days"}",
         style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp),
     )
+    if (!model.hidden && model.todaySpent > 0) {
+        Text("Today ${Money.format(model.todaySpent)} spent", style = TextStyle(color = WidgetColors.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+    }
 }
 
 @Composable

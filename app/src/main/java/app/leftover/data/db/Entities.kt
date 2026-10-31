@@ -22,6 +22,9 @@ enum class TxSource { MANUAL, VOICE, SCAN, SMS, IMPORT, WIDGET, NOTIFICATION }
 
 enum class CategoryKind { EXPENSE, INCOME }
 
+/** How a spend felt afterwards. Belongs to the spend, not the category: the same coffee can be needed one day and a regret the next. */
+enum class TxFeeling(val label: String) { NEEDED("Needed"), WORTH_IT("Worth it"), REGRET("Regret") }
+
 enum class WishStatus { WAITING, BOUGHT, SKIPPED }
 
 /**
@@ -75,6 +78,9 @@ data class TransactionEntity(
     val excludeFromBudgets: Boolean = false,
     val source: TxSource = TxSource.MANUAL,
     val createdAt: Long = System.currentTimeMillis(),
+    val feeling: TxFeeling? = null,
+    /** File name of an attached receipt photo inside the app's private `receipts` folder. Photos are not part of backups. */
+    val receiptFile: String? = null,
 )
 
 @Entity(tableName = "goals")

@@ -13,6 +13,10 @@ import app.leftover.data.BackupException
 import app.leftover.data.NewSharedExpense
 import app.leftover.data.OnboardingAnswers
 import app.leftover.data.Snapshot
+import app.leftover.data.ReceiptStore
+import app.leftover.domain.Pin
+import app.leftover.ui.add.EntryDraft
+import app.leftover.ui.add.ScreenshotIntake
 import app.leftover.data.ThemeMode
 import app.leftover.data.db.AccountEntity
 import app.leftover.data.db.AccountType
@@ -65,7 +69,11 @@ sealed interface RestoreOutcome {
 }
 
 /** A short "Saved · Undo" message shown above the bottom bar. */
-data class Toast(val title: String, val subtitle: String, val undoTransactionId: Long? = null)
+/**
+ * A short confirmation with Undo. Undo deletes [undoTransactionId] (something just added) or puts [restore] back
+ * (something just deleted), along with its tags.
+ */
+data class Toast(val title: String, val subtitle: String, val undoTransactionId: Long? = null, val restore: TransactionEntity? = null, val restoreTags: Set<Long> = emptySet())
 
 /** The single view model for the app: it exposes one [Snapshot] and funnels every write through the repository. */
 class AppViewModel(application: Application) : AndroidViewModel(application) {
@@ -107,9 +115,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Removes the transaction the toast was about and hides the toast. */
     fun undoToast() {
-        val id = _toast.value?.undoTransactionId
+        val current = _toast.value
         dismissToast()
+        val id = current?.undoTransactionId
         if (id != null) run { repository.deleteTransaction(id) }
+        val back = current?.restore
+        if (back != null) run {
+            repository.addTransaction(back)
+            if (current.restoreTags.isNotEmpty()) repository.setTransactionTags(back.id, current.restoreTags)
+        }
+    }
+
+    /** Deletes a plain entry from a list swipe, with Undo. Entries tied to a split or settlement go through their detail screen instead. */
+    fun deleteWithUndo(tx: TransactionEntity, tags: Set<Long>) = run {
+        repository.deleteTransaction(tx.id)
+        showToast(Toast("Deleted", (tx.merchant.ifBlank { tx.note }.ifBlank { "Entry" }) + " · balances updated", restore = tx, restoreTags = tags))
+    }
+
+    private var draft: EntryDraft? = null
+
+    /** Hands the waiting screenshot draft to Quick add, once. */
+    fun takeDraft(): EntryDraft? = draft.also { draft = null }
+
+    /**
+     * A payment screenshot (or a payment app's text) shared from another app. It's read on the phone, and Quick add
+     * opens with the amount, payee, date and reference filled in for the person to check. Nothing saves by itself.
+     */
+    fun captureShared(image: Uri?, text: String?) = viewModelScope.launch {
+        if (image != null) showToast(Toast("Reading your screenshot…", "On this phone · usually a second or two"))
+        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ScreenshotIntake.read(app, image, text) }
+        dismissToast()
+        draft = result
+        requestRoute(Routes.addDraft(result.income))
+    }
+
+    fun attachReceipt(tx: TransactionEntity, fileName: String?) = run { repository.updateTransaction(tx.copy(receiptFile = fileName)) }
+
+    /** Drops receipt photos that no entry points to any more, such as after a delete. */
+    fun sweepReceipts() = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val s = repository.currentSnapshot()
+        ReceiptStore.sweep(app, s.transactions.mapNotNull { it.receiptFile }.toSet())
     }
 
     /** Saves a transaction and confirms it with an undoable toast. */
@@ -167,6 +212,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val locked: StateFlow<Boolean> = combine(snapshot, unlocked) { s, open -> s?.settings?.appLock == true && !open }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     private var leftAt = 0L
     fun unlock() { unlocked.value = true }
+
+    /** Saves a new PIN (hashed) and switches app lock on, since a PIN on its own would do nothing. */
+    fun setPin(pin: String, then: () -> Unit) = viewModelScope.launch {
+        val salt = Pin.newSalt()
+        val hash = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { Pin.hash(pin, salt) }
+        settings.setPin(hash, salt)
+        settings.setAppLock(true)
+        unlocked.value = true
+        then()
+    }
+
+    /** Removes the PIN. App lock stays on only if the phone's own lock can still open it. */
+    fun clearPin(phoneLockAvailable: Boolean) = run {
+        settings.setPin(null, null)
+        if (!phoneLockAvailable) settings.setAppLock(false)
+    }
+
+    /** Checks a PIN at the lock screen. Calls back with null on success, or a message to show. */
+    fun tryPin(pin: String, onResult: (String?) -> Unit) = viewModelScope.launch {
+        val s = snapshot.value?.settings ?: return@launch
+        val now = System.currentTimeMillis()
+        if (s.pinLockedUntil > now) { onResult("Too many tries. Wait ${((s.pinLockedUntil - now) / 1000) + 1} seconds."); return@launch }
+        val ok = s.pinHash != null && s.pinSalt != null &&
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { Pin.matches(pin, s.pinHash, s.pinSalt) }
+        if (ok) {
+            settings.setPinFailures(0, 0L)
+            unlocked.value = true
+            onResult(null)
+        } else {
+            val failures = s.pinFailures + 1
+            val wait = Pin.waitAfter(failures)
+            settings.setPinFailures(failures, if (wait > 0) now + wait else 0L)
+            onResult(if (wait > 0) "Wrong PIN. Try again in ${wait / 1000} seconds." else "Wrong PIN. ${Pin.FREE_TRIES - failures} ${if (Pin.FREE_TRIES - failures == 1) "try" else "tries"} before a wait.")
+        }
+    }
     fun setAppLock(on: Boolean) = run { settings.setAppLock(on); unlocked.value = true }
     fun setHideInSwitcher(on: Boolean) = run { settings.setHideInSwitcher(on) }
     fun onLeftApp() { leftAt = android.os.SystemClock.elapsedRealtime() }
@@ -352,6 +432,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteEverything(then: () -> Unit) = run {
         AutoBackup.cancel(app)
         repository.deleteEverything()
+        ReceiptStore.deleteAll(app)
         then()
     }
 
@@ -370,4 +451,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setVoiceLanguage(value: String) = run { settings.setVoiceLanguage(value) }
     fun setPaydayDay(value: Int) = run { settings.setPaydayDay(value) }
     fun setName(value: String) = run { settings.setName(value) }
+    fun setPureBlack(value: Boolean) = run { settings.setPureBlack(value) }
+    fun setDailyLog(value: Boolean) = run { settings.setDailyLog(value) }
+    fun setBackupReminder(value: Boolean) = run { settings.setBackupReminder(value) }
 }

@@ -53,6 +53,10 @@ data class WidgetModel(
     val presets: List<QuickPreset>,
     val budgets: List<BudgetLine>,
     val last: LastEntry?,
+    /** Your own spending dated today, for the "Today ₹… spent" line. */
+    val todaySpent: Paise = 0,
+    /** With app lock on, the add buttons open the app (and its lock) instead of the quick-entry sheet. */
+    val locked: Boolean = false,
 ) {
     companion object {
         val Empty = WidgetModel(false, false, 0, 0, 0, emptyList(), emptyList(), null)
@@ -77,6 +81,8 @@ data class WidgetModel(
                 presets = QuickPresets.from(ledger),
                 budgets = budgets,
                 last = last,
+                todaySpent = app.leftover.domain.ActivityFilter.daySpend(snapshot.transactions.filter { it.occurredAt.toLocalDate() == ledger.today }),
+                locked = snapshot.settings.appLock,
             )
         }
     }

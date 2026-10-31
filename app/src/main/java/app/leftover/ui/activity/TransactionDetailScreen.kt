@@ -36,7 +36,23 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import app.leftover.data.ReceiptStore
 import app.leftover.data.Snapshot
+import app.leftover.data.db.TxFeeling
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import app.leftover.data.db.CategoryKind
 import app.leftover.data.db.TransactionEntity
 import app.leftover.data.db.TxType
@@ -72,7 +88,7 @@ private fun explain(type: TxType) = when (type) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, onUpdate: (TransactionEntity) -> Unit, onDelete: (Long) -> Unit, onSetTags: (Long, Set<Long>) -> Unit) {
+fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, onUpdate: (TransactionEntity) -> Unit, onDelete: (Long) -> Unit, onSetTags: (Long, Set<Long>) -> Unit, onAttachReceipt: (TransactionEntity, String?) -> Unit) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val tx = snapshot.transactions.firstOrNull { it.id == id }
@@ -125,6 +141,21 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
                         categories.forEach { cat -> Chip(cat.name, tx.categoryId == cat.id, { onUpdate(tx.copy(categoryId = cat.id)) }) }
                     }
                 }
+            }
+
+            if (tx.type == TxType.EXPENSE) {
+                Card(padding = PaddingValues(16.dp)) {
+                    Text("Was it worth it?", style = Type.bodyExtra, color = c.ink)
+                    Text("Only you see this. Insights and reports add up your regrets.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 2.dp))
+                    Spacer(Modifier.height(10.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TxFeeling.entries.forEach { f -> Chip(f.label, tx.feeling == f, { onUpdate(tx.copy(feeling = if (tx.feeling == f) null else f)) }, role = Role.RadioButton) }
+                    }
+                }
+            }
+
+            if (tx.type == TxType.EXPENSE || tx.type == TxType.REFUND || tx.type == TxType.INCOME) {
+                ReceiptCard(tx, onAttach = { name -> onAttachReceipt(tx, name) })
             }
 
             if (tx.type == TxType.EXPENSE || tx.type == TxType.INCOME || tx.type == TxType.REFUND) {
@@ -196,6 +227,73 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
                     Modifier.fillMaxWidth().height(48.dp).clip(Radius.md).clickable(role = Role.Button) { confirmDelete = true },
                     contentAlignment = Alignment.Center,
                 ) { Text("Delete transaction", style = Type.bodyStrong, color = c.emberText) }
+            }
+        }
+    }
+}
+
+/** Attach a photo of the receipt from the camera or the gallery. The photo stays in the app's private folder. */
+@Composable
+private fun ReceiptCard(tx: TransactionEntity, onAttach: (String?) -> Unit) {
+    val c = Leftover.colors
+    val context = LocalContext.current
+    var preview by remember(tx.receiptFile) { mutableStateOf<ImageBitmap?>(null) }
+    var full by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var pendingCamera by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(tx.receiptFile) {
+        preview = tx.receiptFile?.let { name -> withContext(Dispatchers.IO) { ReceiptStore.thumbnail(context, name)?.asImageBitmap() } }
+    }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val name = pendingCamera
+        pendingCamera = null
+        if (name != null) scope.launch {
+            val saved = ok && withContext(Dispatchers.IO) { ReceiptStore.finishCamera(context, name) }
+            if (saved) { error = null; onAttach(name) } else ReceiptStore.file(context, name).delete()
+        }
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            val name = withContext(Dispatchers.IO) { ReceiptStore.importFrom(context, uri) }
+            if (name != null) { error = null; onAttach(name) } else error = "Couldn't read that image. Try another one."
+        }
+    }
+    Card(padding = PaddingValues(16.dp)) {
+        Text("Receipt", style = Type.bodyExtra, color = c.ink)
+        Spacer(Modifier.height(10.dp))
+        val image = preview
+        if (tx.receiptFile != null && image != null) {
+            Image(
+                image, "Receipt photo. Double tap to view it full size.",
+                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(Radius.md).clickable(role = Role.Image) { full = true },
+                contentScale = ContentScale.Crop,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LButton("Replace", { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+                LButton("Remove", { onAttach(null) }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+            }
+        } else {
+            Text("Keep a photo of the bill for returns, warranties or splitting later. It stays on this phone and isn't part of backups.", style = Type.caption, color = c.muted)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LButton("Take photo", {
+                    val (name, uri) = ReceiptStore.cameraTarget(context)
+                    pendingCamera = name
+                    runCatching { camera.launch(uri) }.onFailure { pendingCamera = null; error = "No camera app found." }
+                }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+                LButton("From gallery", { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+            }
+        }
+        error?.let { Text(it, style = Type.small, color = c.emberText, modifier = Modifier.padding(top = 8.dp)) }
+    }
+    if (full && tx.receiptFile != null) {
+        var big by remember { mutableStateOf<ImageBitmap?>(null) }
+        LaunchedEffect(tx.receiptFile) { big = withContext(Dispatchers.IO) { ReceiptStore.thumbnail(context, tx.receiptFile, side = 1600)?.asImageBitmap() } }
+        Dialog(onDismissRequest = { full = false }) {
+            Box(Modifier.fillMaxWidth().clip(Radius.lg).background(c.surface).clickable(role = Role.Button) { full = false }.padding(8.dp)) {
+                big?.let { Image(it, "Receipt photo, full size. Tap to close.", modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.Fit) }
             }
         }
     }

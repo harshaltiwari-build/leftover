@@ -41,7 +41,7 @@ import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.Type
 
 /**
- * Four reminders, each off until switched on. Turning one on is the moment Android's notification permission is asked for,
+ * Six reminders, each off until switched on. Turning one on is the moment Android's notification permission is asked for,
  * with the reason on screen first.
  */
 @Composable
@@ -52,6 +52,8 @@ fun RemindersScreen(
     onPayday: (Boolean) -> Unit,
     onBudgets: (Boolean) -> Unit,
     onWeekly: (Boolean) -> Unit,
+    onDaily: (Boolean) -> Unit,
+    onBackup: (Boolean) -> Unit,
 ) {
     val c = Leftover.colors
     val context = LocalContext.current
@@ -92,7 +94,7 @@ fun RemindersScreen(
                     style = Type.caption, color = c.lavenderMuted, modifier = Modifier.padding(top = 6.dp),
                 )
             }
-            if (denied || ((s.billReminders || s.paydayReminder || s.budgetAlerts || s.weeklyCheckIn) && !allowed)) {
+            if (denied || ((s.billReminders || s.paydayReminder || s.budgetAlerts || s.weeklyCheckIn || s.dailyLog || s.backupReminder) && !allowed)) {
                 Banner(
                     "Notifications are off for Leftover, so reminders can't show. Turn them on in Android settings.", c.emberBg, c.emberText,
                     trailing = "Settings",
@@ -107,6 +109,10 @@ fun RemindersScreen(
                 ToggleRow("Close to a budget limit", "Once per category per cycle, at 90% used", s.budgetAlerts, switch(s.budgetAlerts, onBudgets))
                 Divider()
                 ToggleRow("Weekly check-in", "Sunday morning: a look back at the week", s.weeklyCheckIn, switch(s.weeklyCheckIn, onWeekly))
+                Divider()
+                ToggleRow("Log today", "9 pm, only on days with nothing added yet", s.dailyLog, switch(s.dailyLog, onDaily))
+                Divider()
+                ToggleRow("Backup reminder", "Once a week after 30 days without a backup", s.backupReminder, switch(s.backupReminder, onBackup))
             }
             Text(
                 "On the lock screen a reminder only says that something is waiting. Amounts also stay out of reminders when Hide balances is on.",

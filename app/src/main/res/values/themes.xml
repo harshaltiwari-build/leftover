@@ -6,6 +6,16 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
+    <!-- The widget's quick-entry sheet: see-through, so the launcher shows behind the scrim. -->
+    <style name="Theme.Leftover.Sheet" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.InputMethod</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <!-- The system splash stays plain (ivory, or the dark ground at night); the Compose launch animation draws the logo. -->
     <style name="Theme.Leftover.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/window_ground</item>

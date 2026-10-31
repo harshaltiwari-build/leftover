@@ -119,7 +119,7 @@ fun MoneyRhythmScreen(
 }
 
 @Composable
-fun AppearanceScreen(snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeMode) -> Unit, onSetVoiceLanguage: (String) -> Unit) {
+fun AppearanceScreen(snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeMode) -> Unit, onSetVoiceLanguage: (String) -> Unit, onSetPureBlack: (Boolean) -> Unit) {
     val c = Leftover.colors
     val s = snapshot.settings
     SubPage("Appearance and language", onBack) {
@@ -128,6 +128,9 @@ fun AppearanceScreen(snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeM
             Card(padding = PaddingValues(16.dp)) {
                 Segmented(listOf("Light", "Dark", "System"), s.themeMode.label(), { picked -> onSetTheme(ThemeMode.entries.first { it.label() == picked }) })
                 Text("System follows your phone's setting.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 10.dp))
+            }
+            Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                ToggleRow("Pure black in dark mode", "True black behind everything. Easier on OLED screens and their batteries.", s.pureBlack, onSetPureBlack)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

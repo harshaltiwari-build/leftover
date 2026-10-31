@@ -58,9 +58,31 @@ import app.leftover.ui.components.ToggleRow
 import app.leftover.ui.lock.AppLock
 import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.Radius
+import app.leftover.domain.Pin
+import app.leftover.ui.lock.PinDots
+import app.leftover.ui.lock.PinPad
+import app.leftover.ui.lock.PinSetupDialog
 import app.leftover.ui.theme.Type
 import java.time.Duration
 import java.time.Instant
+
+/** Type the current PIN to confirm a change, on phones where there's no screen lock to ask instead. */
+@Composable
+private fun PinConfirmDialog(onCheck: (String, (String?) -> Unit) -> Unit, onConfirmed: () -> Unit, onCancel: () -> Unit) {
+    val c = Leftover.colors
+    var pin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    fun submit() { if (Pin.valid(pin)) onCheck(pin) { e -> pin = ""; if (e == null) onConfirmed() else error = e } }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onCancel) {
+        Column(Modifier.clip(Radius.xl).background(c.ground).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Enter your PIN", style = Type.h2, color = c.ink)
+            PinDots(pin.length)
+            error?.let { Text(it, style = Type.caption, color = c.emberText) }
+            PinPad(onDigit = { d -> if (pin.length < Pin.MAX_LENGTH) pin += d }, onDelete = { pin = pin.dropLast(1) }, onDone = ::submit, doneEnabled = Pin.valid(pin))
+            Text("Cancel", style = Type.captionBold, color = c.muted, modifier = Modifier.clip(Radius.sm).clickable(role = Role.Button, onClick = onCancel).padding(12.dp))
+        }
+    }
+}
 
 /** Where each Settings row goes. Kept together so the page itself stays readable. */
 data class SettingsActions(
@@ -81,6 +103,9 @@ data class SettingsActions(
     val onOpenAppearance: () -> Unit,
     val onOpenAbout: () -> Unit,
     val onOpenDelete: () -> Unit,
+    val onSetPin: (String, () -> Unit) -> Unit = { _, _ -> },
+    val onClearPin: (Boolean) -> Unit = {},
+    val onCheckPin: (String, (String?) -> Unit) -> Unit = { _, _ -> },
 )
 
 /**
@@ -106,18 +131,35 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
     val backupAgeDays = if (s.lastBackupAt == 0L) null else Duration.between(Instant.ofEpochMilli(s.lastBackupAt), Instant.now()).toDays()
     val backupNeedsAttention = backupAgeDays == null || backupAgeDays > 30
 
-    fun toggleLock(wanted: Boolean) {
+    var settingPin by remember { mutableStateOf(false) }
+    // What to do once the current PIN is typed correctly, when the phone has no lock of its own to confirm with.
+    var confirmWithPin by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    fun confirm(title: String, then: () -> Unit) {
         val activity = activity ?: return
-        lockMessage = null
-        if (wanted && !AppLock.available(context)) {
-            lockMessage = "Set a screen lock or fingerprint in Android settings first. Leftover uses it to unlock."
-            return
+        when {
+            AppLock.available(context) -> AppLock.prompt(activity, title, "Confirm it's you", onSuccess = then, onFailure = { lockMessage = it })
+            s.hasPin -> confirmWithPin = then
+            else -> then()
         }
-        AppLock.prompt(
-            activity, if (wanted) "Turn on app lock" else "Turn off app lock", "Confirm it's you",
-            onSuccess = { actions.onSetAppLock(wanted) }, onFailure = { lockMessage = it },
-        )
     }
+
+    fun toggleLock(wanted: Boolean) {
+        lockMessage = null
+        when {
+            wanted && !AppLock.available(context) && !s.hasPin -> settingPin = true
+            else -> confirm(if (wanted) "Turn on app lock" else "Turn off app lock") { actions.onSetAppLock(wanted) }
+        }
+    }
+
+    fun togglePin(wanted: Boolean) {
+        lockMessage = null
+        if (wanted) settingPin = true
+        else confirm("Remove your Leftover PIN") { actions.onClearPin(AppLock.available(context)) }
+    }
+
+    if (settingPin) PinSetupDialog(onSet = { pin -> actions.onSetPin(pin) { settingPin = false } }, onCancel = { settingPin = false })
+    confirmWithPin?.let { then -> PinConfirmDialog(onCheck = actions.onCheckPin, onConfirmed = { confirmWithPin = null; then() }, onCancel = { confirmWithPin = null }) }
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -145,7 +187,9 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
             Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                 ToggleRow("Hide balances", "Show ₹ •••• instead of amounts, everywhere in the app, widgets, notifications and shared recaps.", s.hideBalances, actions.onSetHide)
                 Divider()
-                ToggleRow("App lock", "Ask for your fingerprint, face or screen lock when you open Leftover.", s.appLock, ::toggleLock)
+                ToggleRow("App lock", if (s.hasPin) "Ask for your Leftover PIN when you open the app." else "Ask for your fingerprint, face or screen lock when you open Leftover.", s.appLock, ::toggleLock)
+                Divider()
+                ToggleRow("Leftover PIN", "A 4 to 6 digit PIN just for this app. Works on phones without a screen lock. Locks for a while after 5 wrong tries.", s.hasPin, ::togglePin)
                 Divider()
                 ToggleRow("Hide in the app switcher", "Blank preview in recent apps. On Android 12 and older this also blocks screenshots.", s.hideInSwitcher, actions.onSetHideInSwitcher)
             }

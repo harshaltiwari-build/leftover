@@ -24,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,13 +116,16 @@ fun SplitScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionHeader("Groups", "New group", onAddGroup)
-                if (book.groups.isEmpty()) {
+                var showArchived by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+                val archivedCount = book.groups.count { it.archived }
+                val liveGroups = book.groups.filter { showArchived || !it.archived }
+                if (liveGroups.isEmpty()) {
                     Card(padding = PaddingValues(vertical = 8.dp)) {
                         CenteredHint("Flatmates, a trip or an event: put people together to see one total and the fewest payments to settle.")
                     }
                 } else {
                     Card {
-                        book.groups.forEachIndexed { index, group ->
+                        liveGroups.forEachIndexed { index, group ->
                             if (index > 0) Divider()
                             val summary = book.summary(group.id)
                             ListRow(
@@ -128,12 +133,19 @@ fun SplitScreen(
                                 leading = {
                                     Icon(group.kind.icon(), null, tint = c.ink, modifier = Modifier.size(44.dp).clip(Radius.sm).background(CategoryPalette.of("lavender", c.isDark).tile).padding(11.dp))
                                 },
-                                title = group.name,
-                                subtitle = "${group.kind.label()} · ${book.groupMembers(group.id).size + 1} people",
+                                title = group.name + if (group.archived) " · archived" else "",
+                                subtitle = (if (group.startEpochDay != null && group.endEpochDay != null) app.leftover.domain.TripDates.describe(java.time.LocalDate.ofEpochDay(group.startEpochDay), java.time.LocalDate.ofEpochDay(group.endEpochDay), snapshot.today) else group.kind.label()) + " · ${book.groupMembers(group.id).size + 1} people",
                                 trailing = { Amount(summary?.total ?: 0, hidden, Type.bodyExtra) },
                             )
                         }
                     }
+                }
+                if (archivedCount > 0) {
+                    Text(
+                        if (showArchived) "Hide archived groups" else "Show $archivedCount archived ${if (archivedCount == 1) "group" else "groups"}",
+                        style = Type.captionBold, color = c.muted,
+                        modifier = Modifier.clickable(role = androidx.compose.ui.semantics.Role.Button) { showArchived = !showArchived }.padding(horizontal = 4.dp, vertical = 8.dp),
+                    )
                 }
             }
 

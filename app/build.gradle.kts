@@ -13,8 +13,10 @@ android {
         applicationId = "io.github.yourorg.leftover"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
+        // Text recognition is native code. Phones are ARM; leaving out x86 keeps about 16 MB out of the APK.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     buildTypes {
@@ -42,6 +44,7 @@ ksp {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.tesseract4android)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

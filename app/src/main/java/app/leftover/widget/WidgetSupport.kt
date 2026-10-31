@@ -21,11 +21,22 @@ internal object WidgetColors {
     val positive = ColorProvider(day = Color(0xFF3F5A0B), night = Color(0xFFC5E86B))
 }
 
+/** Lets the quick-entry sheet hand over to the full app. */
+object WidgetIntents {
+    fun openApp(context: Context, route: String): Intent = Widgets.open(context, route)
+}
+
 internal object Widgets {
     /** An intent that opens Leftover on a specific screen, for example `add?kind=Income` or `voice`. */
     fun open(context: Context, route: String): Intent =
         Intent(Intent.ACTION_VIEW, Uri.parse(DeepLinks.uri(route)), context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+    /** The quick-entry sheet over the launcher, or the app itself when app lock is on. */
+    fun add(context: Context, kind: String, locked: Boolean): Intent =
+        if (locked) open(context, app.leftover.ui.Routes.add(kind))
+        else Intent(context, app.leftover.QuickEntryActivity::class.java).putExtra(app.leftover.QuickEntryActivity.KIND, kind)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
     suspend fun refreshAll(context: Context) {
         LeftoverWidget().updateAll(context)

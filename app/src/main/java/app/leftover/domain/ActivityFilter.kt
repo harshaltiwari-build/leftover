@@ -1,6 +1,7 @@
 package app.leftover.domain
 
 import app.leftover.data.db.TransactionEntity
+import app.leftover.data.db.TxFeeling
 import app.leftover.data.db.TxType
 
 enum class ActivityGroup(val label: String) {
@@ -8,14 +9,21 @@ enum class ActivityGroup(val label: String) {
     EXPENSES("Expenses"),
     INCOME("Income"),
     MONEY_BACK("Money back"),
-    TRANSFERS("Transfers");
+    TRANSFERS("Transfers"),
+    REGRETS("Regrets"),
+    RECEIPTS("Has receipt");
 
-    fun matches(type: TxType): Boolean = when (this) {
-        ALL -> true
-        EXPENSES -> type == TxType.EXPENSE
-        INCOME -> type == TxType.INCOME
-        MONEY_BACK -> type == TxType.REFUND || type == TxType.REPAYMENT
-        TRANSFERS -> type == TxType.TRANSFER || type == TxType.SETTLE_OUT || type == TxType.GOAL_SAVE || type == TxType.GOAL_WITHDRAW
+    fun matches(tx: TransactionEntity): Boolean {
+        val type = tx.type
+        return when (this) {
+            ALL -> true
+            EXPENSES -> type == TxType.EXPENSE
+            INCOME -> type == TxType.INCOME
+            MONEY_BACK -> type == TxType.REFUND || type == TxType.REPAYMENT
+            TRANSFERS -> type == TxType.TRANSFER || type == TxType.SETTLE_OUT || type == TxType.GOAL_SAVE || type == TxType.GOAL_WITHDRAW
+            REGRETS -> tx.feeling == TxFeeling.REGRET
+            RECEIPTS -> tx.receiptFile != null
+        }
     }
 }
 
@@ -25,7 +33,7 @@ object ActivityFilter {
         val needle = query.trim().lowercase()
         val digits = needle.replace(",", "").toLongOrNull()
         return transactions.filter { tx ->
-            group.matches(tx.type) && (needle.isEmpty() ||
+            group.matches(tx) && (needle.isEmpty() ||
                 tx.merchant.lowercase().contains(needle) ||
                 tx.note.lowercase().contains(needle) ||
                 (ledger.category(tx.categoryId)?.name?.lowercase()?.contains(needle) == true) ||

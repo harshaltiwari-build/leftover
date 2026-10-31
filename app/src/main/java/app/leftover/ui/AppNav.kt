@@ -51,6 +51,8 @@ import app.leftover.ui.home.HomeScreen
 import app.leftover.ui.home.LeftBreakdownScreen
 import app.leftover.ui.insights.InsightsScreen
 import app.leftover.ui.insights.RecapScreen
+import app.leftover.ui.insights.ReportsScreen
+import app.leftover.ui.insights.AskScreen
 import app.leftover.ui.launch.LaunchScreen
 import app.leftover.ui.onboarding.BalanceScreen
 import app.leftover.ui.onboarding.FirstExpenseScreen
@@ -192,9 +194,17 @@ fun AppNav(viewModel: AppViewModel) {
                 composable(Routes.LEFT) {
                     LeftBreakdownScreen(data, onBack = { nav.popBackStack() }, onSetIncluded = { account, included -> viewModel.updateAccount(account.copy(includeInLeft = included)) })
                 }
-                composable(Routes.ADD_PATTERN, arguments = listOf(navArgument("kind") { type = NavType.StringType; defaultValue = "Expense" })) { backStack ->
+                composable(
+                    Routes.ADD_PATTERN,
+                    arguments = listOf(
+                        navArgument("kind") { type = NavType.StringType; defaultValue = "Expense" },
+                        navArgument("draft") { type = NavType.BoolType; defaultValue = false },
+                    ),
+                ) { backStack ->
+                    val draft = remember(backStack) { if (backStack.arguments?.getBoolean("draft") == true) viewModel.takeDraft() else null }
                     QuickAddScreen(
                         initialKind = backStack.arguments?.getString("kind") ?: "Expense",
+                        draft = draft,
                         snapshot = data,
                         onClose = { nav.popBackStack() },
                         onSave = { tx, message, tags ->
@@ -227,10 +237,11 @@ fun AppNav(viewModel: AppViewModel) {
                 }
 
                 composable(Routes.ACTIVITY) {
-                    ActivityScreen(data, onOpenTransaction = { nav.navigate(Routes.tx(it)) }, onOpenAccounts = { nav.navigate(Routes.ACCOUNTS) }, onOpenInsights = { nav.navigate(Routes.INSIGHTS) }, onOpenImport = { nav.navigate(Routes.IMPORT_CSV) }, onOpenReview = { nav.navigate(Routes.REVIEW) })
+                    ActivityScreen(data, onOpenTransaction = { nav.navigate(Routes.tx(it)) }, onOpenAccounts = { nav.navigate(Routes.ACCOUNTS) }, onOpenInsights = { nav.navigate(Routes.INSIGHTS) }, onOpenImport = { nav.navigate(Routes.IMPORT_CSV) }, onOpenReview = { nav.navigate(Routes.REVIEW) },
+                        onDelete = { tx -> viewModel.deleteWithUndo(tx, app.leftover.domain.TagTotals.tagsOf(tx.id, data.txTags)) })
                 }
                 composable(Routes.TX, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
-                    TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags)
+                    TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags, onAttachReceipt = viewModel::attachReceipt)
                 }
                 composable(Routes.ACCOUNTS) { AccountsScreen(data, onBack = { nav.popBackStack() }, onAdd = { nav.navigate(Routes.addAccount()) }, onAddCash = { nav.navigate(Routes.addAccount("CASH")) }, onOpenCard = { nav.navigate(Routes.card(it)) }, onOpenCash = { nav.navigate(Routes.cash(it)) }, onOpenGoals = { nav.switchTab(Routes.GOALS) }) }
                 composable(Routes.CASH, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
@@ -271,7 +282,7 @@ fun AppNav(viewModel: AppViewModel) {
                 }
                 composable(Routes.CHECKIN) { CheckInScreen(data, onBack = { nav.popBackStack() }, onAddChallenge = viewModel::addChallenge, onDeleteChallenge = viewModel::deleteChallenge) }
                 composable(Routes.REMINDERS) {
-                    RemindersScreen(data, onBack = { nav.popBackStack() }, onBills = viewModel::setBillReminders, onPayday = viewModel::setPaydayReminder, onBudgets = viewModel::setBudgetAlerts, onWeekly = viewModel::setWeeklyCheckIn)
+                    RemindersScreen(data, onBack = { nav.popBackStack() }, onBills = viewModel::setBillReminders, onPayday = viewModel::setPaydayReminder, onBudgets = viewModel::setBudgetAlerts, onWeekly = viewModel::setWeeklyCheckIn, onDaily = viewModel::setDailyLog, onBackup = viewModel::setBackupReminder)
                 }
                 composable(Routes.TAGS) { TagsScreen(data, onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.tag(it)) }, onAdd = viewModel::addTag) }
                 composable(Routes.TAG, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
@@ -361,11 +372,14 @@ fun AppNav(viewModel: AppViewModel) {
                         onSplitBill = { nav.navigate(Routes.splitBill(groupId = id)) },
                         onSettle = { person, amount -> nav.navigate(Routes.settle(person, groupId = id, amount = amount)) },
                         onDeleteExpense = viewModel::deleteSharedExpense,
+                        onUpdateGroup = { g -> viewModel.updateGroup(g, data.shared.groupMembers(id).map { it.id }.toSet()) },
                     )
                 }
                 composable(Routes.ADD_PERSON) { AddPersonScreen(onClose = { nav.popBackStack() }, onSave = viewModel::addPerson) }
 
-                composable(Routes.INSIGHTS) { InsightsScreen(data, onBack = { nav.popBackStack() }, onOpenRecap = { nav.navigate(Routes.RECAP) }) }
+                composable(Routes.INSIGHTS) { InsightsScreen(data, onBack = { nav.popBackStack() }, onOpenRecap = { nav.navigate(Routes.RECAP) }, onOpenReports = { nav.navigate(Routes.REPORTS) }, onOpenAsk = { nav.navigate(Routes.ASK) }) }
+                composable(Routes.REPORTS) { ReportsScreen(data, onBack = { nav.popBackStack() }) }
+                composable(Routes.ASK) { AskScreen(data, onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(Routes.tx(it)) }) }
                 composable(Routes.RECAP) { RecapScreen(data, onClose = { nav.popBackStack() }) }
                 composable(Routes.SMS) {
                     SmsScreen(
@@ -403,11 +417,12 @@ fun AppNav(viewModel: AppViewModel) {
                             onOpenRhythm = { nav.navigate(Routes.RHYTHM) }, onOpenBills = { nav.navigate(Routes.BILLS) }, onOpenSms = { nav.navigate(Routes.SMS) },
                             onOpenReminders = { nav.navigate(Routes.REMINDERS) }, onOpenBackup = { nav.navigate(Routes.BACKUP) }, onOpenPrivacy = { nav.navigate(Routes.PRIVACY) },
                             onOpenAppearance = { nav.navigate(Routes.APPEARANCE) }, onOpenAbout = { nav.navigate(Routes.ABOUT) }, onOpenDelete = { nav.navigate(Routes.DELETE) },
+                            onSetPin = { pin, done -> viewModel.setPin(pin, done) }, onClearPin = viewModel::clearPin, onCheckPin = { pin, done -> viewModel.tryPin(pin, done) },
                         ),
                     )
                 }
                 composable(Routes.RHYTHM) { MoneyRhythmScreen(data, onBack = { nav.popBackStack() }, onSetPayday = viewModel::setPaydayDay, onSetIncome = viewModel::setIncome, onSetIrregular = viewModel::setIrregularIncome) }
-                composable(Routes.APPEARANCE) { AppearanceScreen(data, onBack = { nav.popBackStack() }, onSetTheme = viewModel::setThemeMode, onSetVoiceLanguage = viewModel::setVoiceLanguage) }
+                composable(Routes.APPEARANCE) { AppearanceScreen(data, onBack = { nav.popBackStack() }, onSetTheme = viewModel::setThemeMode, onSetVoiceLanguage = viewModel::setVoiceLanguage, onSetPureBlack = viewModel::setPureBlack) }
                 composable(Routes.PRIVACY) { PrivacyScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.ABOUT) { AboutScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.DELETE) {

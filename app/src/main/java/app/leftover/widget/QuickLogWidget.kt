@@ -94,6 +94,6 @@ private fun QuickLogContent(model: WidgetModel, logged: LastLogged.Entry?) {
             Pill("${preset.label} ${Money.format(preset.amount)}", R.drawable.widget_btn_primary, WidgetColors.onPrimary, action)
             Spacer(GlanceModifier.height(6.dp))
         }
-        Pill("+ Other", R.drawable.widget_btn_quiet, WidgetColors.ink, actionStartActivity(Widgets.open(context, Routes.add("Expense"))))
+        Pill("+ Other", R.drawable.widget_btn_quiet, WidgetColors.ink, actionStartActivity(Widgets.add(context, "Expense", model.locked)))
     }
 }

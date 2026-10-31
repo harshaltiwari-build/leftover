@@ -83,6 +83,26 @@ class ChallengeAndReminderTest {
         assertEquals(1, ReminderPlanner.plan(ledger(sunday), ReminderPrefs(weekly = true), false, emptySet()).size)
         assertTrue(ReminderPlanner.plan(ledger(sunday.plusDays(1)), ReminderPrefs(weekly = true), false, emptySet()).isEmpty())
     }
+    @Test fun `backup reminder waits for a month of entries and then nags weekly at most`() {
+        val today = LocalDate.of(2026, 10, 25)
+        val young = ledger(today, listOf(expense(today.minusDays(10), 100)))
+        assertTrue(ReminderPlanner.plan(young, ReminderPrefs(backup = true), false, emptySet()).isEmpty())
+        val old = ledger(today, listOf(expense(today.minusDays(40), 100)))
+        val first = ReminderPlanner.plan(old, ReminderPrefs(backup = true), false, emptySet()).single()
+        assertEquals(ReminderKind.BACKUP, first.kind)
+        assertTrue(ReminderPlanner.plan(old, ReminderPrefs(backup = true), false, setOf(first.key)).isEmpty())
+        // A recent backup keeps it quiet.
+        assertTrue(ReminderPlanner.plan(old, ReminderPrefs(backup = true), false, emptySet(), lastBackupAt = at(today.minusDays(3))).isEmpty())
+    }
+    @Test fun `daily nudge only on a day with nothing logged`() {
+        val today = LocalDate.of(2026, 10, 25)
+        val quiet = ledger(today, listOf(expense(today.minusDays(1), 100).copy(createdAt = at(today.minusDays(1)))))
+        val nudge = ReminderPlanner.dailyNudge(quiet, emptySet())
+        assertEquals(ReminderKind.DAILY, nudge?.kind)
+        assertEquals(null, ReminderPlanner.dailyNudge(quiet, setOf(nudge!!.key)))
+        val busy = ledger(today, listOf(expense(today, 100).copy(createdAt = at(today))))
+        assertEquals(null, ReminderPlanner.dailyNudge(busy, emptySet()))
+    }
     @Test fun `old sent keys are pruned`() {
         val today = LocalDate.of(2026, 10, 25)
         val kept = "a|${today.minusDays(3).toEpochDay()}"; val old = "b|${today.minusDays(100).toEpochDay()}"

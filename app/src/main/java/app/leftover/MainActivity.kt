@@ -33,6 +33,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleLink(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND) {
+            @Suppress("DEPRECATION")
+            val image = (if (android.os.Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java) else intent.getParcelableExtra(Intent.EXTRA_STREAM))
+                ?.takeIf { intent.type?.startsWith("image/") == true }
+            viewModel.captureShared(image, intent.getStringExtra(Intent.EXTRA_TEXT))
+            return
+        }
         val link = intent?.data ?: return
         if (link.scheme == DeepLinks.SCHEME && link.host == "capture") {
             val entry = CaptureLink.parse(link.getQueryParameter("amount"), link.getQueryParameter("merchant"), link.getQueryParameter("note"), link.getQueryParameter("kind"))
@@ -62,7 +69,10 @@ class MainActivity : FragmentActivity() {
         viewModel.onBackInApp()
         // An exported CSV only needs to exist while the share sheet is open.
         java.io.File(cacheDir, "leftover-export.csv").delete()
+        java.io.File(cacheDir, "leftover-report.pdf").delete()
+        java.io.File(cacheDir, "leftover-recap.png").delete()
         viewModel.materialiseRecurring()
+        viewModel.sweepReceipts()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,11 +85,11 @@ class MainActivity : FragmentActivity() {
             val locked by viewModel.locked.collectAsState()
             val keepOutOfRecents = snapshot?.settings?.let { it.hideInSwitcher || it.appLock } == true
             LaunchedEffect(keepOutOfRecents) { hideFromRecents(keepOutOfRecents) }
-            LeftoverTheme(snapshot?.settings?.themeMode ?: ThemeMode.SYSTEM) {
+            LeftoverTheme(snapshot?.settings?.themeMode ?: ThemeMode.SYSTEM, snapshot?.settings?.pureBlack == true) {
                 Box(Modifier.fillMaxSize()) {
                     // While locked, nothing under the lock screen is drawn for screen readers either.
                     Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics {} else Modifier)) { AppNav(viewModel) }
-                    if (locked) LockScreen(onUnlocked = viewModel::unlock)
+                    if (locked) LockScreen(hasPin = snapshot?.settings?.hasPin == true, onTryPin = { pin, done -> viewModel.tryPin(pin, done) }, onUnlocked = viewModel::unlock)
                 }
             }
         }

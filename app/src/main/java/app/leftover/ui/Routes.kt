@@ -12,8 +12,11 @@ object Routes {
     const val HOME = "home"
     const val LEFT = "home/left"
     const val ADD = "add"
-    const val ADD_PATTERN = "add?kind={kind}"
+    const val ADD_PATTERN = "add?kind={kind}&draft={draft}"
     fun add(kind: String) = "add?kind=$kind"
+
+    /** Quick add filled in from the screenshot draft the view model is holding. */
+    fun addDraft(income: Boolean) = "add?kind=${if (income) "Income" else "Expense"}&draft=true"
     const val VOICE = "voice"
     const val AFFORD = "afford"
 
@@ -60,6 +63,8 @@ object Routes {
 
     const val INSIGHTS = "insights"
     const val RECAP = "insights/recap"
+    const val REPORTS = "insights/reports"
+    const val ASK = "insights/ask"
     const val SETTINGS = "settings"
     const val SMS = "settings/sms"
     const val REMINDERS = "settings/reminders"

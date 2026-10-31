@@ -64,7 +64,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
-fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Unit) {
+fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Unit, onOpenReports: () -> Unit, onOpenAsk: () -> Unit) {
     val c = Leftover.colors
     val hidden = snapshot.settings.hideBalances
     val insights = Insights.build(snapshot.ledger)
@@ -82,6 +82,10 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
             )
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LinkTile("Reports", "Any dates · PDF", onOpenReports, Modifier.weight(1f))
+                LinkTile("Ask", "Questions about your money", onOpenAsk, Modifier.weight(1f))
+            }
             Card(shape = Radius.xl, padding = PaddingValues(18.dp)) {
                 Text(InsightText.comparison(insights.comparison, hidden), style = Type.title, color = c.ink)
                 if (insights.comparison.hasHistory && insights.averageSpent > 0 && !hidden) {
@@ -157,6 +161,18 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
                 MoneyInOut(insights, hidden)
             }
         }
+    }
+}
+
+@Composable
+private fun LinkTile(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Leftover.colors
+    Column(
+        modifier.clip(Radius.lg).background(c.surface).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text("$title →", style = Type.bodyExtra, color = c.ink)
+        Text(subtitle, style = Type.small, color = c.muted, maxLines = 2)
     }
 }
 
@@ -303,7 +319,28 @@ fun RecapScreen(snapshot: Snapshot, onClose: () -> Unit) {
                     hideAmounts -> "my first tracked cycle, ${skipped.size} wishlist skips."
                     else -> "spent ${Money.format(spent)}, ${Money.format(saved)} into goals."
                 }
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }, "Share recap"))
+                val share = (top?.second ?: 0L) * 100 / spent.coerceAtLeast(1)
+                val stats = listOf(
+                    RecapStat(
+                        "You spent",
+                        when { !hideAmounts -> Money.format(spent); change != null -> "${kotlin.math.abs(change)}% ${if (change >= 0) "less" else "more"}"; else -> "First cycle" },
+                        if (change == null) "My first tracked cycle" else if (change >= 0) "Less than the cycle before" else "More than the cycle before",
+                    ),
+                    RecapStat("Biggest category", top?.first?.name ?: "—", if (top == null) "No spending recorded" else "$share% of spending"),
+                    RecapStat("Into my goals", if (hideAmounts) (if (saved > 0) "Saved" else "Not yet") else "+${Money.format(saved)}", if (saved > 0) "Moved money on payday" else "Next cycle"),
+                    RecapStat("Kept by waiting", if (hideAmounts) "${skipped.size} ${if (skipped.size == 1) "skip" else "skips"}" else Money.format(skipped.sumOf { it.price }), "Wishlist items I didn't need"),
+                )
+                val period = "${cycle.start.dayOfMonth} ${cycle.start.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)} – ${cycle.end.dayOfMonth} ${cycle.end.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)}"
+                val image = runCatching { RecapImage.write(context, monthName, period, stats) }.getOrNull()
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    if (image != null) {
+                        type = "image/png"
+                        putExtra(Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", image))
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } else type = "text/plain"
+                }
+                context.startActivity(Intent.createChooser(intent, "Share recap"))
             }, kind = ButtonKind.Lime)
             Spacer(Modifier.height(10.dp))
         }

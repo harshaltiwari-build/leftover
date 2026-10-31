@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut: lime disc with an ink glyph, matching the app icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#FFD6F478" android:pathData="M24,2a22,22 0,1 0,0 44a22,22 0,1 0,0 -44z" />
+    <path android:fillColor="#FF20251B" android:pathData="M15,31h18v2.5H15zM16.5,22h3.5v7.5h-3.5zM22.25,15h3.5v14.5h-3.5zM28,19h3.5v10.5H28z" />
+</vector>

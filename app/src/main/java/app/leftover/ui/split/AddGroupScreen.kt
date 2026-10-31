@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import app.leftover.data.Snapshot
 import app.leftover.data.db.GroupEntity
 import app.leftover.data.db.GroupKind
+import app.leftover.domain.TripDates
+import app.leftover.ui.components.DateRangeDialog
+import java.time.LocalDate
 import app.leftover.domain.rupees
 import app.leftover.ui.components.BackButton
 import app.leftover.ui.components.ButtonKind
@@ -52,6 +55,9 @@ fun AddGroupScreen(snapshot: Snapshot, onClose: () -> Unit, onAddPerson: () -> U
     var kind by rememberSaveable { mutableStateOf(GroupKind.FRIENDS) }
     var members by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     var budget by rememberSaveable { mutableStateOf("") }
+    var startDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var endDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pickingDates by rememberSaveable { mutableStateOf(false) }
     val hasBudget = kind == GroupKind.TRIP || kind == GroupKind.EVENT
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding().imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 16.dp)) {
@@ -68,6 +74,13 @@ fun AddGroupScreen(snapshot: Snapshot, onClose: () -> Unit, onAddPerson: () -> U
             }
             LabeledField("Name", name, if (kind == GroupKind.TRIP) "Goa trip" else "Flat 4B", { name = it.take(30) }, KeyboardType.Text, capitalize = true)
             if (hasBudget) LabeledField("Budget (optional)", budget, "0", { budget = it.filter(Char::isDigit).take(8) }, KeyboardType.Number, prefix = "₹")
+            if (hasBudget) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Dates (optional)")
+                    val s = startDay; val e = endDay
+                    Chip(if (s != null && e != null) TripDates.range(LocalDate.ofEpochDay(s), LocalDate.ofEpochDay(e)) else "Pick dates", s != null, { pickingDates = true }, role = androidx.compose.ui.semantics.Role.Button)
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("Who's in it")
@@ -91,8 +104,12 @@ fun AddGroupScreen(snapshot: Snapshot, onClose: () -> Unit, onAddPerson: () -> U
         }
         LButton("Create group", enabled = name.isNotBlank() && members.isNotEmpty(), onClick = {
             val limit = budget.toLongOrNull()?.takeIf { hasBudget && it > 0 }?.let(::rupees)
-            onSave(GroupEntity(name = name.trim(), kind = kind, budget = limit), members)
+            onSave(GroupEntity(name = name.trim(), kind = kind, budget = limit, startEpochDay = startDay.takeIf { hasBudget }, endEpochDay = endDay.takeIf { hasBudget }), members)
             onClose()
         })
+    }
+    if (pickingDates) {
+        DateRangeDialog("When is it?", "Done", startDay?.let(LocalDate::ofEpochDay), endDay?.let(LocalDate::ofEpochDay),
+            onPicked = { s, e -> startDay = s.toEpochDay(); endDay = e.toEpochDay() }, onDismiss = { pickingDates = false })
     }
 }

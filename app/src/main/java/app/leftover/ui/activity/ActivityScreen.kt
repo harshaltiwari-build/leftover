@@ -1,6 +1,24 @@
 package app.leftover.ui.activity
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +67,7 @@ import app.leftover.ui.theme.LeftoverIcons
 import app.leftover.ui.theme.Radius
 import app.leftover.ui.theme.Type
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActivityScreen(
     snapshot: Snapshot,
@@ -57,6 +76,7 @@ fun ActivityScreen(
     onOpenInsights: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenReview: () -> Unit,
+    onDelete: (app.leftover.data.db.TransactionEntity) -> Unit,
 ) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
@@ -66,6 +86,8 @@ fun ActivityScreen(
 
     val shown = remember(snapshot.transactions, group, query) { ActivityFilter.apply(snapshot.transactions, group, query, ledger) }
     val byDay = remember(shown) { shown.groupBy { UiFormat.date(it) }.toList().sortedByDescending { it.first } }
+    // Entries that belong to a split bill or a settle-up are only deleted from their detail screen, so the split stays whole.
+    val linked = remember(snapshot.shared) { (snapshot.shared.expenses.mapNotNull { it.transactionId } + snapshot.shared.settlements.mapNotNull { it.transactionId }).toSet() }
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
         Column(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -87,9 +109,9 @@ fun ActivityScreen(
                 items(ActivityGroup.entries) { entry -> Chip(entry.label, group == entry, { group = entry }) }
             }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             item {
-                Column(Modifier.clickable(role = Role.Button, onClick = onOpenInsights), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(bottom = 18.dp).clickable(role = Role.Button, onClick = onOpenInsights), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         SummaryTile("Spent this cycle", ledger.totalSpent(), hidden, Modifier.weight(1f))
                         SummaryTile("Income", ledger.income(), hidden, Modifier.weight(1f))
@@ -108,9 +130,9 @@ fun ActivityScreen(
                     }
                 }
             }
-            items(byDay, key = { it.first.toEpochDay() }) { (date, list) ->
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            byDay.forEach { (date, list) ->
+                stickyHeader(key = "day-${date.toEpochDay()}") {
+                    Row(Modifier.fillMaxWidth().background(c.ground).padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(UiFormat.dayHeader(date, snapshot.today), style = Type.captionBold, color = c.muted)
                         val spend = ActivityFilter.daySpend(list)
                         Text(
@@ -123,15 +145,73 @@ fun ActivityScreen(
                             style = Type.captionBold, color = c.muted,
                         )
                     }
-                    Card {
-                        list.forEachIndexed { index, tx ->
-                            if (index > 0) Divider()
-                            TransactionRow(tx, ledger, hidden) { onOpenTransaction(tx.id) }
+                }
+                itemsIndexed(list, key = { _, tx -> tx.id }) { index, tx ->
+                    val locked = tx.id in linked
+                    val shape = when {
+                        list.size == 1 -> Radius.lg
+                        index == 0 -> RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                        index == list.lastIndex -> RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp)
+                        else -> RoundedCornerShape(0.dp)
+                    }
+                    Column(Modifier.padding(bottom = if (index == list.lastIndex) 14.dp else 0.dp)) {
+                        SwipeToDelete(enabled = !locked, onDelete = { onDelete(tx) }, shape = shape) {
+                            Column(Modifier.fillMaxWidth().clip(shape).background(c.surface)) {
+                                if (index > 0) Divider()
+                                TransactionRow(tx, ledger, hidden) { onOpenTransaction(tx.id) }
+                            }
                         }
                     }
                 }
             }
+            if (byDay.isNotEmpty()) {
+                item {
+                    Text("Swipe an entry left to delete it. Split bills and settle-ups are deleted from their own page.", style = Type.small, color = c.muted, modifier = Modifier.padding(horizontal = 4.dp))
+                }
+            }
         }
+    }
+}
+
+/**
+ * Drag a row left past a third of its width to delete it; anything shorter springs back. Screen readers get a
+ * "Delete" action instead of the gesture.
+ */
+@Composable
+private fun SwipeToDelete(enabled: Boolean, onDelete: () -> Unit, shape: androidx.compose.ui.graphics.Shape, content: @Composable () -> Unit) {
+    val c = Leftover.colors
+    if (!enabled) { content(); return }
+    val scope = rememberCoroutineScope()
+    val offset = remember { Animatable(0f) }
+    var width by remember { mutableFloatStateOf(1f) }
+    Box(
+        Modifier.fillMaxWidth().onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+            .semantics { customActions = listOf(CustomAccessibilityAction("Delete") { onDelete(); true }) },
+    ) {
+        if (offset.value < 0f) {
+            Box(Modifier.matchParentSize().clip(shape).background(c.emberBg).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(if (-offset.value > width / 3) "Release to delete" else "Delete", style = Type.captionBold, color = c.emberText)
+            }
+        }
+        Box(
+            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }.pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        scope.launch {
+                            if (-offset.value > width / 3) {
+                                offset.animateTo(-width, tween(160))
+                                onDelete()
+                                offset.snapTo(0f)
+                            } else offset.animateTo(0f, spring())
+                        }
+                    },
+                    onDragCancel = { scope.launch { offset.animateTo(0f, spring()) } },
+                ) { change, drag ->
+                    change.consume()
+                    scope.launch { offset.snapTo((offset.value + drag).coerceIn(-width, 0f)) }
+                }
+            },
+        ) { content() }
     }
 }
 

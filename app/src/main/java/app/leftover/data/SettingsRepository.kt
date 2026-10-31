@@ -60,7 +60,20 @@ data class Settings(
     val backupEveryDays: Int = 7,
     val lastBackupAt: Long = 0,
     val lastBackupError: String? = null,
+    /** True black behind dark mode, for OLED screens. */
+    val pureBlack: Boolean = false,
+    /** An evening nudge on days with nothing logged. */
+    val dailyLog: Boolean = false,
+    /** A nudge when there's been no backup for 30 days. */
+    val backupReminder: Boolean = false,
+    /** Optional app-only PIN, stored as a salted PBKDF2 hash. */
+    val pinHash: String? = null,
+    val pinSalt: String? = null,
+    /** Wrong PIN tries in a row, and when the pad opens again. Kept on disk so closing the app doesn't reset them. */
+    val pinFailures: Int = 0,
+    val pinLockedUntil: Long = 0,
 ) {
+    val hasPin: Boolean get() = pinHash != null && pinSalt != null
     val backupProtected: Boolean get() = backupSalt != null && backupWrappedKey != null
 }
 
@@ -98,6 +111,13 @@ class SettingsRepository(private val context: Context) {
         val backupEveryDays = intPreferencesKey("backup_every_days")
         val lastBackupAt = longPreferencesKey("last_backup_at")
         val lastBackupError = stringPreferencesKey("last_backup_error")
+        val pureBlack = booleanPreferencesKey("pure_black")
+        val dailyLog = booleanPreferencesKey("daily_log")
+        val backupReminder = booleanPreferencesKey("backup_reminder")
+        val pinHash = stringPreferencesKey("pin_hash")
+        val pinSalt = stringPreferencesKey("pin_salt")
+        val pinFailures = intPreferencesKey("pin_failures")
+        val pinLockedUntil = longPreferencesKey("pin_locked_until")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
@@ -134,6 +154,13 @@ class SettingsRepository(private val context: Context) {
         backupEveryDays = this[Keys.backupEveryDays] ?: 7,
         lastBackupAt = this[Keys.lastBackupAt] ?: 0L,
         lastBackupError = this[Keys.lastBackupError],
+        pureBlack = this[Keys.pureBlack] ?: false,
+        dailyLog = this[Keys.dailyLog] ?: false,
+        backupReminder = this[Keys.backupReminder] ?: false,
+        pinHash = this[Keys.pinHash],
+        pinSalt = this[Keys.pinSalt],
+        pinFailures = this[Keys.pinFailures] ?: 0,
+        pinLockedUntil = this[Keys.pinLockedUntil] ?: 0L,
     )
 
     suspend fun completeOnboarding(paydayDay: Int, incomeType: String, usualIncome: Long) {
@@ -204,4 +231,13 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSmsTracking(value: Boolean) = context.dataStore.edit { it[Keys.smsTracking] = value }
     suspend fun setPaydayDay(value: Int) = context.dataStore.edit { it[Keys.paydayDay] = value }
     suspend fun setName(value: String) = context.dataStore.edit { it[Keys.name] = value }
+    suspend fun setPureBlack(value: Boolean) = context.dataStore.edit { it[Keys.pureBlack] = value }
+    suspend fun setDailyLog(value: Boolean) = context.dataStore.edit { it[Keys.dailyLog] = value }
+    suspend fun setBackupReminder(value: Boolean) = context.dataStore.edit { it[Keys.backupReminder] = value }
+    suspend fun setPin(hash: String?, salt: String?) = context.dataStore.edit {
+        if (hash == null || salt == null) { it.remove(Keys.pinHash); it.remove(Keys.pinSalt) } else { it[Keys.pinHash] = hash; it[Keys.pinSalt] = salt }
+        it[Keys.pinFailures] = 0
+        it[Keys.pinLockedUntil] = 0L
+    }
+    suspend fun setPinFailures(failures: Int, lockedUntil: Long) = context.dataStore.edit { it[Keys.pinFailures] = failures; it[Keys.pinLockedUntil] = lockedUntil }
 }

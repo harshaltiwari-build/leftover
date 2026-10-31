@@ -51,6 +51,39 @@ object ReminderScheduler {
     }
 }
 
+/** The evening "anything to log?" nudge, around nine at night, only while it's switched on. */
+object DailyLogScheduler {
+    private const val WORK = "leftover-daily-log"
+
+    fun sync(context: Context, on: Boolean) {
+        val manager = WorkManager.getInstance(context)
+        if (!on) {
+            manager.cancelUniqueWork(WORK)
+            return
+        }
+        val now = LocalDateTime.now()
+        var next = now.with(LocalTime.of(21, 0))
+        if (!next.isAfter(now)) next = next.plusDays(1)
+        val request = PeriodicWorkRequestBuilder<DailyLogWorker>(1, TimeUnit.DAYS)
+            .setInitialDelay(Duration.between(now, next).toMinutes(), TimeUnit.MINUTES)
+            .build()
+        manager.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+    }
+}
+
+class DailyLogWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val app = applicationContext as LeftoverApp
+        if (!app.settings.settings.first().dailyLog || !ReminderNotifier.allowed(applicationContext)) return Result.success()
+        val snapshot = app.repository.currentSnapshot()
+        val sent = ReminderPlanner.prune(app.settings.reminderSent(), snapshot.today)
+        val nudge = ReminderPlanner.dailyNudge(snapshot.ledger, sent.map { it.substringBeforeLast('|') }.toSet()) ?: return Result.success()
+        ReminderNotifier.show(applicationContext, nudge)
+        app.settings.setReminderSent(sent + "${nudge.key}|${snapshot.today.toEpochDay()}")
+        return Result.success()
+    }
+}
+
 /** A single reminder set by the user for a particular moment, such as "think again about these earbuds on payday". */
 object OneShotReminders {
     private const val KEY = "key"
@@ -85,14 +118,14 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val app = applicationContext as LeftoverApp
         val settings = app.settings.settings.first()
-        val prefs = ReminderPrefs(settings.billReminders, settings.paydayReminder, settings.budgetAlerts, settings.weeklyCheckIn)
+        val prefs = ReminderPrefs(settings.billReminders, settings.paydayReminder, settings.budgetAlerts, settings.weeklyCheckIn, settings.backupReminder)
         if (!prefs.any || !ReminderNotifier.allowed(applicationContext)) return Result.success()
 
         val snapshot = app.repository.currentSnapshot()
         val today = snapshot.today
         val sent = ReminderPlanner.prune(app.settings.reminderSent(), today)
         val sentKeys = sent.map { it.substringBeforeLast('|') }.toSet()
-        val due = ReminderPlanner.plan(snapshot.ledger, prefs, settings.hideBalances, sentKeys)
+        val due = ReminderPlanner.plan(snapshot.ledger, prefs, settings.hideBalances, sentKeys, settings.lastBackupAt)
         due.forEach { ReminderNotifier.show(applicationContext, it) }
         app.settings.setReminderSent(sent + due.map { "${it.key}|${today.toEpochDay()}" })
         return Result.success()
@@ -111,7 +144,7 @@ object ReminderNotifier {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (manager.getNotificationChannel(CHANNEL) == null) {
             manager.createNotificationChannel(NotificationChannel(CHANNEL, "Reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Bills coming due, payday, budgets and the weekly check-in"
+                description = "Bills coming due, payday, budgets, backups, the weekly check-in and the evening log nudge"
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             })
         }

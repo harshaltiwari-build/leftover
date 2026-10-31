@@ -88,6 +88,16 @@
             </intent-filter>
         </service>
 
+        <!-- Quick entry from a widget, as a sheet over the launcher. Its own task, so saving returns to the home screen. -->
+        <activity
+            android:name=".QuickEntryActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:noHistory="true"
+            android:theme="@style/Theme.Leftover.Sheet"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -96,6 +106,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Share a payment screenshot (or a payment app's text) to Leftover: Quick add opens with it attached. Nothing saves without you. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
             <!-- Entries from other apps (Tasker, Automate). They only reach the review queue, and only when switched on in Automatic tracking. -->

@@ -3,6 +3,12 @@ package app.leftover.ui.add
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
+import app.leftover.data.db.TxSource
+import app.leftover.domain.SmsPolicy
+import app.leftover.domain.toLocalDate
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.asImageBitmap
 import app.leftover.data.db.TemplateEntity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,6 +83,7 @@ fun QuickAddScreen(
     onSaveTemplate: (TemplateEntity) -> Unit,
     onDeleteTemplate: (Long) -> Unit,
     initialKind: String = "Expense",
+    draft: EntryDraft? = null,
 ) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
@@ -88,6 +95,31 @@ fun QuickAddScreen(
     var note by rememberSaveable { mutableStateOf("") }
     var daysAgo by rememberSaveable { mutableStateOf(0) }
     var merchant by rememberSaveable { mutableStateOf("") }
+    var receipt by rememberSaveable { mutableStateOf<String?>(null) }
+    // Set when the entry came from a screenshot: what was read, and the time the payment was made.
+    var scanned by remember { mutableStateOf<EntryDraft?>(null) }
+    var scannedTime by rememberSaveable { mutableStateOf<Int?>(null) }
+    var reading by remember { mutableStateOf(false) }
+
+    /** Fills the form from a read screenshot. The person checks everything before saving. */
+    fun apply(d: EntryDraft) {
+        scanned = d
+        receipt = d.receipt ?: receipt
+        if (d.income) kind = "Income"
+        // Quick add keeps whole rupees, so ₹1,250.50 comes in as 1,251.
+        d.amount?.let { digits = ((it + 50) / 100).coerceAtMost(9_999_999).toString() }
+        if (d.merchant.isNotBlank()) merchant = d.merchant
+        if (d.note.isNotBlank() && note.isBlank()) note = d.note
+        d.date?.let { daysAgo = java.time.temporal.ChronoUnit.DAYS.between(it, LocalDate.now()).toInt().coerceAtLeast(0) }
+        scannedTime = d.time?.toSecondOfDay()
+        if (!d.income && d.merchant.isNotBlank()) {
+            categoryId = SmsPolicy.categoryFor(d.merchant, snapshot.transactions)
+                ?: SmsPolicy.ruleCategory(d.merchant, snapshot.rules.map { it.pattern to it.categoryId })
+                ?: categoryId
+        }
+    }
+    var draftApplied by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(draft) { if (draft != null && !draftApplied) { apply(draft); draftApplied = true } }
     var tagIds by rememberSaveable { mutableStateOf(emptySet<Long>()) }
     var newTag by rememberSaveable { mutableStateOf<String?>(null) }
     var waitingForTag by rememberSaveable { mutableStateOf<String?>(null) }
@@ -212,6 +244,14 @@ fun QuickAddScreen(
             Spacer(Modifier.height(10.dp))
             NoteField(note) { note = it }
             if (kind != "Transfer") {
+                Spacer(Modifier.height(10.dp))
+                ScreenshotRow(
+                    receipt, scanned, reading, amount, ledger,
+                    onReading = { reading = it }, onRead = ::apply,
+                    onRemove = { receipt = null; scanned = null; scannedTime = null },
+                )
+            }
+            if (kind != "Transfer") {
                 Spacer(Modifier.height(12.dp))
                 Text("Tags", style = Type.captionBold, color = c.muted)
                 Spacer(Modifier.height(8.dp))
@@ -255,12 +295,14 @@ fun QuickAddScreen(
             enabled = ready,
             onClick = {
                 val zone = ZoneId.systemDefault()
-                val moment = LocalDate.now().minusDays(daysAgo.toLong()).atTime(java.time.LocalTime.now()).atZone(zone).toInstant().toEpochMilli()
+                val at = scannedTime?.let { java.time.LocalTime.ofSecondOfDay(it.toLong()) } ?: java.time.LocalTime.now()
+                val moment = LocalDate.now().minusDays(daysAgo.toLong()).atTime(at).atZone(zone).toInstant().toEpochMilli()
                 val type = when (kind) { "Income" -> TxType.INCOME; "Transfer" -> TxType.TRANSFER; else -> TxType.EXPENSE }
                 val tx = TransactionEntity(
                     type = type, amount = amount, accountId = fromAccount!!.id,
                     toAccountId = if (type == TxType.TRANSFER) toAccount?.id else null,
                     categoryId = selectedCategory?.id, merchant = merchant, note = note.trim(), occurredAt = moment,
+                    receiptFile = receipt, source = if (scanned?.read == true) TxSource.SCAN else TxSource.MANUAL,
                 )
                 val title = when (type) {
                     TxType.EXPENSE -> "Saved ${Money.format(amount)} · ${selectedCategory?.name}"
@@ -283,6 +325,94 @@ private fun AccountRow(label: String, options: List<Pair<Long, String>>, selecte
             options.forEach { (id, name) -> Chip(name, id == selectedId, { onSelect(id) }, icon = LeftoverIcons.forKey(if (name.contains("cash", true)) "cash" else if (name.contains("card", true)) "card" else "bank")) }
         }
     }
+}
+
+/**
+ * "Read a payment screenshot": pick one, and its amount, payee, date and reference fill the form. Once read, shows the
+ * screenshot with what was found, any warning (a failed payment, a possible duplicate), and a way to remove it.
+ */
+@Composable
+private fun ScreenshotRow(
+    receipt: String?, scanned: EntryDraft?, reading: Boolean, amount: Long, ledger: app.leftover.domain.Ledger,
+    onReading: (Boolean) -> Unit, onRead: (EntryDraft) -> Unit, onRemove: () -> Unit,
+) {
+    val c = Leftover.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var preview by androidx.compose.runtime.remember(receipt) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(receipt) {
+        preview = receipt?.let { name -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.leftover.data.ReceiptStore.thumbnail(context, name, side = 240)?.asImageBitmap() } }
+    }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            onReading(true)
+            val d = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ScreenshotIntake.read(context, uri, null) }
+            onReading(false)
+            onRead(d)
+        }
+    }
+    if (reading) {
+        Row(Modifier.fillMaxWidth().clip(Radius.md).background(c.lavender).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp), color = c.lavenderInk, strokeWidth = 2.dp)
+            Column {
+                Text("Reading your screenshot…", style = Type.captionBold, color = c.lavenderInk)
+                Text("On your phone · usually a second or two", style = Type.small, color = c.lavenderMuted)
+            }
+        }
+        return
+    }
+    val image = preview
+    if (scanned != null || (receipt != null && image != null)) {
+        val d = scanned
+        // Same amount within a day of this one already in the books, most likely from a bank text.
+        val duplicate = d?.amount != null && amount > 0 && ledger.transactions.any { tx ->
+            tx.amount == amount && tx.receiptFile != receipt && kotlin.math.abs(java.time.temporal.ChronoUnit.DAYS.between(tx.occurredAt.toLocalDate(), d.date ?: LocalDate.now())) <= 1
+        }
+        Column(Modifier.fillMaxWidth().clip(Radius.md).background(c.surface).border(1.dp, c.hairline, Radius.md).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (image != null) androidx.compose.foundation.Image(image, "Payment screenshot", modifier = Modifier.size(56.dp).clip(Radius.sm), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            d == null -> "Screenshot attached"
+                            !d.read -> "Couldn't read this screenshot"
+                            d.app.isNotBlank() -> "Read from your ${d.app} screenshot"
+                            else -> "Read from your screenshot"
+                        },
+                        style = Type.captionBold, color = c.ink,
+                    )
+                    Text(
+                        when {
+                            d == null -> "Kept with this entry as its receipt."
+                            !d.read -> "Type the amount and pick a category. The screenshot stays as the receipt."
+                            else -> listOfNotNull(
+                                d.amount?.let { "amount" }, d.merchant.takeIf { it.isNotBlank() }?.let { "who you paid" },
+                                d.date?.let { "date" }, d.note.takeIf { it.isNotBlank() }?.let { "UPI ref" },
+                            ).joinToString(", ").replaceFirstChar(Char::titlecase) + " filled in. Check them before saving."
+                        },
+                        style = Type.small, color = c.muted,
+                    )
+                }
+                Text("Remove", style = Type.captionBold, color = c.emberText, modifier = Modifier.clip(Radius.sm).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onRemove).padding(8.dp))
+            }
+            when {
+                d?.status == app.leftover.domain.ScreenshotStatus.FAILED -> Warning("This screenshot says the payment failed. Only save it if money actually left your account.")
+                d?.status == app.leftover.domain.ScreenshotStatus.PENDING -> Warning("This payment was still pending. Save it once it goes through.")
+                duplicate -> Warning("You already have an entry for this amount around this date, maybe from a bank text. Check it isn't the same payment.")
+                d?.income == true -> Text("Marked as income. If a friend paid you back, record it in Split instead.", style = Type.small, color = c.muted)
+            }
+        }
+    } else {
+        Chip("Read a payment screenshot", false, {
+            picker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }, icon = LeftoverIcons.Plus, role = androidx.compose.ui.semantics.Role.Button)
+    }
+}
+
+@Composable
+private fun Warning(text: String) {
+    val c = Leftover.colors
+    Text(text, style = Type.small, color = c.emberText, modifier = Modifier.fillMaxWidth().clip(Radius.sm).background(c.emberBg).padding(10.dp))
 }
 
 @Composable

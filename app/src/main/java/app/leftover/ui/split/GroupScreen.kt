@@ -42,6 +42,14 @@ import app.leftover.ui.theme.CategoryPalette
 import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.LeftoverIcons
 import app.leftover.ui.theme.Radius
+import app.leftover.data.db.GroupEntity
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import app.leftover.data.db.GroupKind
+import app.leftover.domain.TripDates
+import app.leftover.ui.components.DateRangeDialog
+import app.leftover.ui.components.Segmented
+import java.time.LocalDate
 import app.leftover.ui.theme.Type
 import kotlin.math.abs
 
@@ -54,6 +62,7 @@ fun GroupScreen(
     onSplitBill: () -> Unit,
     onSettle: (personId: Long, amount: Long) -> Unit,
     onDeleteExpense: (Long) -> Unit,
+    onUpdateGroup: (GroupEntity) -> Unit = {},
 ) {
     val c = Leftover.colors
     val book = snapshot.shared
@@ -69,18 +78,31 @@ fun GroupScreen(
     }
     val group = summary.group
     fun nameOf(id: Long) = if (id == ME) "You" else book.person(id)?.name ?: "Friend"
-    val budget = group.budget
+    val people = book.groupMembers(groupId).size + 1
+    val isTrip = group.kind == GroupKind.TRIP || group.kind == GroupKind.EVENT
+    var mine by rememberSaveable { mutableStateOf(false) }
+    var pickingDates by rememberSaveable { mutableStateOf(false) }
+    var confirmArchive by rememberSaveable { mutableStateOf(false) }
+    // "My share" reads the hero as your part of the bills against your even slice of the budget.
+    val budget = group.budget?.let { if (mine) TripDates.budgetShare(it, people) else it }
+    val shown = if (mine) summary.yourShare else summary.total
     val expenses = book.expensesOf(groupId)
+    val start = group.startEpochDay?.let(LocalDate::ofEpochDay)
+    val end = group.endEpochDay?.let(LocalDate::ofEpochDay)
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BackButton(onBack)
             Column {
                 Text(group.name, style = Type.h2, color = c.ink, maxLines = 1)
-                Text("${group.kind.label()} · ${book.groupMembers(groupId).size + 1} people", style = Type.small, color = c.muted)
+                Text(
+                    (if (start != null && end != null) TripDates.describe(start, end, snapshot.today) else group.kind.label()) + " · $people people",
+                    style = Type.small, color = c.muted,
+                )
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (group.budget != null) Segmented(listOf("Whole group", "My share"), if (mine) "My share" else "Whole group", { mine = it == "My share" })
             Column(Modifier.fillMaxWidth().clip(Radius.lg).background(c.hero).padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
@@ -93,14 +115,33 @@ fun GroupScreen(
                     }
                 }
                 if (budget != null && budget > 0) {
-                    ProgressBar(summary.total.toFloat() / budget, color = if (summary.total > budget) c.ember else c.heroNumber, track = c.onHeroMuted.copy(alpha = 0.35f))
+                    ProgressBar(shown.toFloat() / budget, color = if (shown > budget) c.ember else c.heroNumber, track = c.onHeroMuted.copy(alpha = 0.35f))
                     Row {
-                        Amount(abs(budget - summary.total), hidden, Type.captionBold, color = c.onHero)
-                        Text(if (summary.total > budget) " over budget" else " left of the budget", style = Type.caption, color = c.onHeroMuted)
+                        Amount(abs(budget - shown), hidden, Type.captionBold, color = c.onHero)
+                        Text(
+                            if (shown > budget) " over ${if (mine) "your slice of the budget" else "budget"}" else " left of ${if (mine) "your slice of the budget" else "the budget"}",
+                            style = Type.caption, color = c.onHeroMuted,
+                        )
                     }
+                    if (mine) Text("Your slice is the budget split evenly between $people people.", style = Type.small, color = c.onHeroMuted)
                 }
             }
             LButton("Add a bill to this group", onSplitBill, kind = ButtonKind.Lime)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (isTrip) LButton(if (start == null) "Add dates" else "Change dates", { pickingDates = true }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+                LButton(if (group.archived) "Unarchive" else "Archive", { if (group.archived) onUpdateGroup(group.copy(archived = false)) else confirmArchive = true }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+            }
+            if (confirmArchive) {
+                Card(padding = PaddingValues(16.dp)) {
+                    Text("Archive ${group.name}?", style = Type.bodyExtra, color = c.ink)
+                    Text("It leaves the Split list. Bills and what people owe stay exactly as they are, so balances with friends don't change.", style = Type.caption, color = c.muted)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LButton("Keep", { confirmArchive = false }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+                        LButton("Archive", { confirmArchive = false; onUpdateGroup(group.copy(archived = true)); onBack() }, modifier = Modifier.weight(1f), height = 44.dp)
+                    }
+                }
+            }
 
             if (summary.byCategory.isNotEmpty()) {
                 SectionLabel("Where it went")
@@ -182,5 +223,9 @@ fun GroupScreen(
                 }
             }
         }
+    }
+    if (pickingDates) {
+        DateRangeDialog("When is it?", "Save dates", start, end,
+            onPicked = { a, b -> onUpdateGroup(group.copy(startEpochDay = a.toEpochDay(), endEpochDay = b.toEpochDay())) }, onDismiss = { pickingDates = false })
     }
 }

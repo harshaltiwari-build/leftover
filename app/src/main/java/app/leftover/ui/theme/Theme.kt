@@ -72,6 +72,12 @@ val DarkColors = LeftoverColors(
     heroNumber = Color(0xFF20251B), chipSelected = Color(0xFFD6F478), onChipSelected = Color(0xFF20251B), isDark = true,
 )
 
+/** Dark mode on true black, for OLED screens: the ground goes to #000 and surfaces step up from it. */
+val BlackColors = DarkColors.copy(
+    ground = Color(0xFF000000), surface = Color(0xFF0E100C), surfaceAlt = Color(0xFF161A13),
+    hairline = Color(0xFF1E231A), border = Color(0xFF262C21), track = Color(0xFF1E231A),
+)
+
 /** One tile colour and one chart colour per category, used everywhere the category appears. */
 @Immutable
 data class CategoryColor(val tile: Color, val bar: Color)
@@ -150,13 +156,13 @@ object Leftover {
 }
 
 @Composable
-fun LeftoverTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+fun LeftoverTheme(mode: ThemeMode = ThemeMode.SYSTEM, pureBlack: Boolean = false, content: @Composable () -> Unit) {
     val dark = when (mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val colors = if (dark) DarkColors else LightColors
+    val colors = if (dark) (if (pureBlack) BlackColors else DarkColors) else LightColors
     val scheme = if (dark) {
         darkColorScheme(primary = colors.lime, onPrimary = colors.onLime, background = colors.ground, surface = colors.surface, onSurface = colors.ink, onBackground = colors.ink)
     } else {
