@@ -103,6 +103,7 @@ data class SettingsActions(
     val onOpenAppearance: () -> Unit,
     val onOpenAbout: () -> Unit,
     val onOpenDelete: () -> Unit,
+    val onOpenProfile: () -> Unit = {},
     val onSetPin: (String, () -> Unit) -> Unit = { _, _ -> },
     val onClearPin: (Boolean) -> Unit = {},
     val onCheckPin: (String, (String?) -> Unit) -> Unit = { _, _ -> },
@@ -180,6 +181,10 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
                         } else {
                             Text("Shown on Home. Never leaves this phone.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 6.dp, start = 4.dp))
                         }
+                        Text(
+                            "View your profile →", style = Type.captionBold, color = c.positive,
+                            modifier = Modifier.padding(top = 6.dp).clip(Radius.sm).clickable(role = Role.Button, onClick = actions.onOpenProfile).padding(vertical = 8.dp, horizontal = 4.dp),
+                        )
                     }
                 }
             }
@@ -248,7 +253,7 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
             }
 
             Group("Look and language") {
-                SettingsRow("Appearance and language", "Theme and voice language", actions.onOpenAppearance, value = s.themeMode.label())
+                SettingsRow("Appearance and language", "Theme, accent colour, font and voice language", actions.onOpenAppearance, value = "${s.accent.label} · ${s.font.label}")
                 Divider()
                 SettingsRow("About Leftover", "Version, licence, credits", actions.onOpenAbout, value = BuildConfig.VERSION_NAME)
             }

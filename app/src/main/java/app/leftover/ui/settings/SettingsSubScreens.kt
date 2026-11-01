@@ -42,6 +42,23 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.leftover.BuildConfig
 import app.leftover.data.Snapshot
 import app.leftover.data.ThemeMode
+import app.leftover.data.Accent
+import app.leftover.data.AppFont
+import app.leftover.ui.theme.Radius
+import app.leftover.ui.theme.accentOf
+import app.leftover.ui.theme.previewFamily
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import app.leftover.domain.rupees
 import app.leftover.ui.UiFormat
 import app.leftover.ui.components.BackButton
@@ -119,7 +136,10 @@ fun MoneyRhythmScreen(
 }
 
 @Composable
-fun AppearanceScreen(snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeMode) -> Unit, onSetVoiceLanguage: (String) -> Unit, onSetPureBlack: (Boolean) -> Unit) {
+fun AppearanceScreen(
+    snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeMode) -> Unit, onSetVoiceLanguage: (String) -> Unit, onSetPureBlack: (Boolean) -> Unit,
+    onSetAccent: (Accent) -> Unit, onSetFont: (AppFont) -> Unit,
+) {
     val c = Leftover.colors
     val s = snapshot.settings
     SubPage("Appearance and language", onBack) {
@@ -131,6 +151,55 @@ fun AppearanceScreen(snapshot: Snapshot, onBack: () -> Unit, onSetTheme: (ThemeM
             }
             Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                 ToggleRow("Pure black in dark mode", "True black behind everything. Easier on OLED screens and their batteries.", s.pureBlack, onSetPureBlack)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Accent colour")
+            Card(padding = PaddingValues(16.dp)) {
+                Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Accent.entries.forEach { accent ->
+                        val selected = s.accent == accent
+                        Column(
+                            Modifier.weight(1f).clip(Radius.md).background(c.surfaceAlt)
+                                .border(if (selected) 2.dp else 1.dp, if (selected) c.ink else c.hairline, Radius.md)
+                                .selectable(selected, role = Role.RadioButton) { onSetAccent(accent) }.padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(Modifier.size(28.dp).clip(Radius.pill).background(accentOf(accent).fill).border(1.dp, c.hairline, Radius.pill))
+                            Text(accent.label, style = Type.smallBold, color = c.ink)
+                        }
+                    }
+                }
+                Text(
+                    "Changes the highlight: the big number on Home, Save and + buttons, rings and selected tabs. Category colours and warnings stay the same, so their meaning never changes. Home-screen widgets keep lime.",
+                    style = Type.small, color = c.muted, modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Font")
+            Card(padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
+                Column(Modifier.selectableGroup()) {
+                    AppFont.entries.forEachIndexed { index, font ->
+                        if (index > 0) Divider()
+                        val selected = s.font == font
+                        Row(
+                            Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton) { onSetFont(font) }.padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text("₹9,610", style = TextStyle(fontFamily = previewFamily(font), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, fontFeatureSettings = "tnum", letterSpacing = (-0.03).em), color = c.ink, modifier = Modifier.width(118.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(font.label, style = Type.bodyStrong, color = c.ink)
+                                Text(font.note, style = Type.small, color = c.muted)
+                            }
+                            Box(
+                                Modifier.size(22.dp).clip(Radius.pill).border(2.dp, if (selected) c.ink else c.subtle, Radius.pill),
+                                contentAlignment = Alignment.Center,
+                            ) { if (selected) Box(Modifier.size(12.dp).clip(Radius.pill).background(c.ink)) }
+                        }
+                    }
+                }
+                Text("All three are open-source fonts built into the app, with even-width numbers so amounts line up.", style = Type.small, color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

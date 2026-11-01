@@ -20,7 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.leftover.R
+import app.leftover.data.Accent
+import app.leftover.data.AppFont
 import app.leftover.data.ThemeMode
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 @Immutable
 data class LeftoverColors(
@@ -113,18 +119,34 @@ object Radius {
 }
 
 @OptIn(ExperimentalTextApi::class)
-private fun manrope(weight: Int) = Font(
-    R.font.manrope,
+private fun variable(res: Int, weight: Int) = Font(
+    res,
     weight = FontWeight(weight),
     variationSettings = FontVariation.Settings(FontVariation.weight(weight)),
 )
 
-val Manrope = FontFamily(manrope(400), manrope(500), manrope(600), manrope(700), manrope(800))
+private fun family(res: Int) = FontFamily(variable(res, 400), variable(res, 500), variable(res, 600), variable(res, 700), variable(res, 800))
 
-/** Type scale: 12 · 13 · 15 · 18 · 22 · 28 · 36 · 48 · 64, tabular figures throughout. */
-object Type {
-    private fun style(size: Int, weight: Int, tracking: Double = 0.0, line: Double? = null) = TextStyle(
-        fontFamily = Manrope,
+val Manrope = family(R.font.manrope)
+private val Bricolage = family(R.font.bricolage)
+private val Jakarta = family(R.font.jakarta)
+
+/** The two families a font choice uses: one for big numbers and titles, one for everything you read. */
+private fun families(font: AppFont): Pair<FontFamily, FontFamily> = when (font) {
+    AppFont.MANROPE -> Manrope to Manrope
+    AppFont.BRICOLAGE -> Bricolage to Manrope
+    AppFont.JAKARTA -> Jakarta to Jakarta
+}
+
+/** The display family of a choice, for previews in Settings. */
+fun previewFamily(font: AppFont): FontFamily = families(font).first
+
+/** One complete type scale for a font choice. */
+class TypeScale(font: AppFont) {
+    private val display = families(font).first
+    private val text = families(font).second
+    private fun style(family: FontFamily, size: Int, weight: Int, tracking: Double = 0.0, line: Double? = null) = TextStyle(
+        fontFamily = family,
         fontSize = size.sp,
         fontWeight = FontWeight(weight),
         letterSpacing = tracking.em,
@@ -132,21 +154,66 @@ object Type {
         fontFeatureSettings = "tnum",
     )
 
-    val display64 = style(64, 800, -0.045, 1.0)
-    val display48 = style(48, 800, -0.04, 1.05)
-    val display36 = style(36, 800, -0.035, 1.08)
-    val h1 = style(28, 800, -0.02, 1.15)
-    val h2 = style(22, 800, -0.01, 1.2)
-    val title = style(18, 800, line = 1.3)
-    val body = style(15, 500, line = 1.45)
-    val bodyStrong = style(15, 700, line = 1.4)
-    val caption = style(13, 600, line = 1.4)
-    val captionBold = style(13, 700, line = 1.4)
-    val bodyExtra = style(15, 800, line = 1.4)
-    val small = style(12, 600, line = 1.35)
-    val smallBold = style(12, 700, line = 1.35)
-    val label = style(12, 700, 0.08, 1.3)
-    val keypad = style(22, 700)
+    val display64 = style(display, 64, 800, -0.045, 1.0)
+    val display48 = style(display, 48, 800, -0.04, 1.05)
+    val display36 = style(display, 36, 800, -0.035, 1.08)
+    val h1 = style(display, 28, 800, -0.02, 1.15)
+    val h2 = style(display, 22, 800, -0.01, 1.2)
+    val title = style(display, 18, 800, line = 1.3)
+    val body = style(text, 15, 500, line = 1.45)
+    val bodyStrong = style(text, 15, 700, line = 1.4)
+    val caption = style(text, 13, 600, line = 1.4)
+    val captionBold = style(text, 13, 700, line = 1.4)
+    val bodyExtra = style(text, 15, 800, line = 1.4)
+    val small = style(text, 12, 600, line = 1.35)
+    val smallBold = style(text, 12, 700, line = 1.35)
+    val label = style(text, 12, 700, 0.08, 1.3)
+    val keypad = style(text, 22, 700)
+}
+
+/**
+ * Type scale: 12 · 13 · 15 · 18 · 22 · 28 · 36 · 48 · 64, tabular figures throughout. The font follows the choice in
+ * Settings → Appearance; reading a style here inside a composable re-reads it when that choice changes.
+ */
+object Type {
+    private val scales = HashMap<AppFont, TypeScale>()
+    private var font by mutableStateOf(AppFont.MANROPE)
+
+    fun use(choice: AppFont) { font = choice }
+    private val s: TypeScale get() = scales.getOrPut(font) { TypeScale(font) }
+
+    val display64 get() = s.display64
+    val display48 get() = s.display48
+    val display36 get() = s.display36
+    val h1 get() = s.h1
+    val h2 get() = s.h2
+    val title get() = s.title
+    val body get() = s.body
+    val bodyStrong get() = s.bodyStrong
+    val caption get() = s.caption
+    val captionBold get() = s.captionBold
+    val bodyExtra get() = s.bodyExtra
+    val small get() = s.small
+    val smallBold get() = s.smallBold
+    val label get() = s.label
+    val keypad get() = s.keypad
+}
+
+/** The accent swaps the brand highlight only: hero number, primary buttons, rings, selected tabs. Meaning colours never change. */
+data class AccentColor(val fill: Color, val deep: Color)
+
+fun accentOf(accent: Accent): AccentColor = when (accent) {
+    Accent.LIME -> AccentColor(Color(0xFFD6F478), Color(0xFFB7DB3E))
+    Accent.LAVENDER -> AccentColor(Color(0xFFC9BEFA), Color(0xFF9F8DF2))
+    Accent.PEACH -> AccentColor(Color(0xFFF6C2A0), Color(0xFFEB9A66))
+    Accent.SKY -> AccentColor(Color(0xFFAFCFEA), Color(0xFF7FAEDB))
+}
+
+private fun LeftoverColors.withAccent(accent: Accent): LeftoverColors {
+    if (accent == Accent.LIME) return this
+    val a = accentOf(accent)
+    return if (isDark) copy(lime = a.fill, limeDeep = a.deep, hero = a.fill, chipSelected = a.fill)
+    else copy(lime = a.fill, limeDeep = a.deep, heroNumber = a.fill)
 }
 
 private val LocalColors = staticCompositionLocalOf { LightColors }
@@ -156,13 +223,15 @@ object Leftover {
 }
 
 @Composable
-fun LeftoverTheme(mode: ThemeMode = ThemeMode.SYSTEM, pureBlack: Boolean = false, content: @Composable () -> Unit) {
+fun LeftoverTheme(mode: ThemeMode = ThemeMode.SYSTEM, pureBlack: Boolean = false, accent: Accent = Accent.LIME, font: AppFont = AppFont.MANROPE, content: @Composable () -> Unit) {
+    // Set before any child reads a style, so the first frame already uses the chosen font.
+    remember(font) { Type.use(font); font }
     val dark = when (mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val colors = if (dark) (if (pureBlack) BlackColors else DarkColors) else LightColors
+    val colors = (if (dark) (if (pureBlack) BlackColors else DarkColors) else LightColors).withAccent(accent)
     val scheme = if (dark) {
         darkColorScheme(primary = colors.lime, onPrimary = colors.onLime, background = colors.ground, surface = colors.surface, onSurface = colors.ink, onBackground = colors.ink)
     } else {

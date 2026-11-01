@@ -3,6 +3,12 @@ package app.leftover.ui.add
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import app.leftover.data.db.TxSource
 import app.leftover.domain.SmsPolicy
 import app.leftover.domain.toLocalDate
@@ -139,10 +145,18 @@ fun QuickAddScreen(
     val spendAccounts = snapshot.accounts.filter { it.type != app.leftover.data.db.AccountType.SAVINGS }
     val fromAccount = spendAccounts.firstOrNull { it.id == accountId } ?: spendAccounts.firstOrNull()
     val toAccount = spendAccounts.firstOrNull { it.id == toAccountId && it.id != fromAccount?.id } ?: spendAccounts.firstOrNull { it.id != fromAccount?.id }
+    // Categories you used most recently come first, so the usual one is a tap away.
+    val lastUsed = remember(snapshot.transactions) {
+        val order = HashMap<Long, Int>()
+        snapshot.transactions.sortedByDescending { it.occurredAt }.forEachIndexed { i, tx -> tx.categoryId?.let { order.putIfAbsent(it, i) } }
+        order
+    }
     val categories = snapshot.categories.filter { !it.hidden && it.kind == if (kind == "Income") CategoryKind.INCOME else CategoryKind.EXPENSE }
+        .sortedWith(compareBy({ lastUsed[it.id] ?: Int.MAX_VALUE }, { it.sortOrder }))
     val selectedCategory = categories.firstOrNull { it.id == categoryId }
 
     val amount = KeypadInput.toPaise(digits)
+    val safe = remember(ledger) { app.leftover.domain.SafeToday.of(ledger) }
     val before = ledger.leftToSpend.left
     val after = when (kind) {
         "Expense" -> before - amount
@@ -163,7 +177,11 @@ fun QuickAddScreen(
             Spacer(Modifier.height(8.dp))
             val over = after < 0 && kind == "Expense"
             Text(
-                text = if (kind == "Transfer") "Transfers don't change what you can spend" else "Left to spend: ${Money.format(before)} → ${Money.format(after)}",
+                text = when {
+                    kind == "Transfer" -> "Transfers don't change what you can spend"
+                    kind == "Expense" && daysAgo == 0 -> "Safe today ${Money.format(safe.leftToday.coerceAtLeast(0))} → ${Money.format(safe.leftToday - amount)}" + if (safe.leftToday - amount < 0) " (over)" else ""
+                    else -> "Left to spend: ${Money.format(before)} → ${Money.format(after)}"
+                },
                 style = Type.captionBold, color = if (over) c.emberText else c.ink,
                 modifier = Modifier.align(Alignment.CenterHorizontally).clip(Radius.pill).background(if (over) c.emberBg else c.track).padding(horizontal = 12.dp, vertical = 6.dp),
             )
@@ -214,11 +232,7 @@ fun QuickAddScreen(
                 AccountRow("To", spendAccounts.filter { it.id != fromAccount?.id }.map { it.id to it.name }, toAccount?.id) { toAccountId = it }
             }
             Spacer(Modifier.height(10.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Today" to 0, "Yesterday" to 1, "2 days ago" to 2).forEach { (label, days) -> Chip(label, daysAgo == days, { daysAgo = days }, icon = if (daysAgo == days) LeftoverIcons.Calendar else null) }
-                val custom = daysAgo > 2
-                Chip(if (custom) UiFormat.dayMonth(LocalDate.now().minusDays(daysAgo.toLong())) else "Other date", custom, { pickingDate = true }, icon = LeftoverIcons.Calendar)
-            }
+            DateStrip(daysAgo, onPick = { daysAgo = it }, onOther = { pickingDate = true })
             if (pickingDate) {
                 val todayUtc = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
                 val state = androidx.compose.material3.rememberDatePickerState(
@@ -413,6 +427,38 @@ private fun ScreenshotRow(
 private fun Warning(text: String) {
     val c = Leftover.colors
     Text(text, style = Type.small, color = c.emberText, modifier = Modifier.fillMaxWidth().clip(Radius.sm).background(c.emberBg).padding(10.dp))
+}
+
+/** The last six days as one row of taps, today on the right, plus a calendar for anything older. */
+@Composable
+private fun DateStrip(daysAgo: Int, onPick: (Int) -> Unit, onOther: () -> Unit) {
+    val c = Leftover.colors
+    val today = LocalDate.now()
+    val dayName = java.time.format.DateTimeFormatter.ofPattern("EEE", java.util.Locale.ENGLISH)
+    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        (5 downTo 0).forEach { back ->
+            val date = today.minusDays(back.toLong())
+            val selected = daysAgo == back
+            Column(
+                Modifier.weight(1f).heightIn(min = 56.dp).clip(Radius.md).background(if (selected) c.chipSelected else Color.Transparent)
+                    .selectable(selected, role = Role.RadioButton) { onPick(back) }
+                    .semantics { contentDescription = if (back == 0) "Today" else if (back == 1) "Yesterday" else "${dayName.format(date)} ${date.dayOfMonth}" },
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+            ) {
+                Text(date.dayOfMonth.toString(), style = Type.bodyExtra, color = if (selected) c.onChipSelected else c.ink)
+                Text(if (back == 0) "today" else dayName.format(date).lowercase(), style = Type.small, color = if (selected) c.onChipSelected else c.muted)
+            }
+        }
+        val older = daysAgo > 5
+        Box(
+            Modifier.size(width = 52.dp, height = 56.dp).clip(Radius.md).background(if (older) c.chipSelected else c.surfaceAlt)
+                .clickable(role = Role.Button, onClickLabel = "Pick an older date", onClick = onOther),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (older) Text(UiFormat.dayMonth(today.minusDays(daysAgo.toLong())), style = Type.smallBold, color = c.onChipSelected, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            else Icon(LeftoverIcons.Calendar, "Pick an older date", tint = c.ink, modifier = Modifier.size(20.dp))
+        }
+    }
 }
 
 @Composable

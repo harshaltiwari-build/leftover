@@ -17,6 +17,16 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** The brand highlight colour, picked in Settings → Appearance. */
+enum class Accent(val label: String) { LIME("Lime"), LAVENDER("Lavender"), PEACH("Peach"), SKY("Sky") }
+
+/** The app's font. Bricolage is used for big numbers and titles only, with Manrope for reading. */
+enum class AppFont(val label: String, val note: String) {
+    MANROPE("Manrope", "Clean and friendly. The default."),
+    BRICOLAGE("Bricolage", "Bold titles and numbers, Manrope for reading."),
+    JAKARTA("Jakarta", "Softer and rounder, everywhere."),
+}
+
 data class Settings(
     val onboarded: Boolean = false,
     val name: String = "",
@@ -72,6 +82,8 @@ data class Settings(
     /** Wrong PIN tries in a row, and when the pad opens again. Kept on disk so closing the app doesn't reset them. */
     val pinFailures: Int = 0,
     val pinLockedUntil: Long = 0,
+    val accent: Accent = Accent.LIME,
+    val font: AppFont = AppFont.MANROPE,
 ) {
     val hasPin: Boolean get() = pinHash != null && pinSalt != null
     val backupProtected: Boolean get() = backupSalt != null && backupWrappedKey != null
@@ -118,6 +130,8 @@ class SettingsRepository(private val context: Context) {
         val pinSalt = stringPreferencesKey("pin_salt")
         val pinFailures = intPreferencesKey("pin_failures")
         val pinLockedUntil = longPreferencesKey("pin_locked_until")
+        val accent = stringPreferencesKey("accent")
+        val font = stringPreferencesKey("font")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
@@ -161,6 +175,8 @@ class SettingsRepository(private val context: Context) {
         pinSalt = this[Keys.pinSalt],
         pinFailures = this[Keys.pinFailures] ?: 0,
         pinLockedUntil = this[Keys.pinLockedUntil] ?: 0L,
+        accent = this[Keys.accent]?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.LIME,
+        font = this[Keys.font]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.MANROPE,
     )
 
     suspend fun completeOnboarding(paydayDay: Int, incomeType: String, usualIncome: Long) {
@@ -231,6 +247,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSmsTracking(value: Boolean) = context.dataStore.edit { it[Keys.smsTracking] = value }
     suspend fun setPaydayDay(value: Int) = context.dataStore.edit { it[Keys.paydayDay] = value }
     suspend fun setName(value: String) = context.dataStore.edit { it[Keys.name] = value }
+    suspend fun setAccent(value: Accent) = context.dataStore.edit { it[Keys.accent] = value.name }
+    suspend fun setFont(value: AppFont) = context.dataStore.edit { it[Keys.font] = value.name }
     suspend fun setPureBlack(value: Boolean) = context.dataStore.edit { it[Keys.pureBlack] = value }
     suspend fun setDailyLog(value: Boolean) = context.dataStore.edit { it[Keys.dailyLog] = value }
     suspend fun setBackupReminder(value: Boolean) = context.dataStore.edit { it[Keys.backupReminder] = value }

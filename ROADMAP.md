@@ -69,6 +69,17 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] **Widget quick-entry sheet** over the launcher and a **today-spent line** on the Left to spend widget.
 - [x] **Launcher shortcuts**, **pure black** dark mode, **"log today"** and **backup** reminders.
 
+## v0.7: the redesign
+
+- [x] **Safe to spend today** with feedback for tomorrow, and a pace warning on Home.
+- [x] **Home** rebuilt around three numbers: left until payday, safe today, and money set aside for goals.
+- [x] **Insights tab** with Week · Month · Year and budget vs actual. Split moves into Plan and Home.
+- [x] **Accent colour and font** pickers in Settings → Appearance.
+- [x] **Profile** screen.
+- [x] **Quick add** date strip, recent categories first, safe-today impact.
+- [x] **Plan** "spoken for" card; soft-shadow cards and a floating tab bar.
+- [ ] Four-question onboarding (income, payday, fixed costs, saving target), money timeline, merged "Can I afford this?", widget and lock-screen redesign, a single monthly spending budget.
+
 ## Not built, on purpose or not yet
 
 - [ ] **Reading shop receipts line by line** and splitting their items across categories. Payment screenshots are read since v0.6 (Tesseract, on the phone); paper receipts are harder to read reliably.

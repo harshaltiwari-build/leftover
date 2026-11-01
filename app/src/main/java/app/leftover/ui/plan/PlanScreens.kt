@@ -49,6 +49,7 @@ import app.leftover.data.Snapshot
 import app.leftover.data.db.CategoryEntity
 import app.leftover.data.db.CategoryKind
 import app.leftover.domain.Money
+import app.leftover.ui.components.ListRow
 import app.leftover.domain.PayCycle
 import app.leftover.domain.rupees
 import app.leftover.ui.Routes
@@ -101,8 +102,45 @@ private fun PayCycle.back(count: Int): PayCycle {
     return cycle
 }
 
+/** How much of a month's income is already promised: bills, EMIs and goal money, and what that leaves to spend. */
 @Composable
-fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimits: () -> Unit, onCategories: () -> Unit, onOpenTags: () -> Unit, onOpenCheckIn: () -> Unit, onOpenBreakdown: () -> Unit, onToggleRollover: (CategoryEntity) -> Unit) {
+private fun SpokenFor(snapshot: Snapshot, hidden: Boolean, onOpen: () -> Unit) {
+    val c = Leftover.colors
+    val bills = snapshot.bills.filter { !it.archived }.sumOf { it.amount }
+    val emis = snapshot.emis.filter { !it.archived && it.remainingMonths > 0 }.sumOf { it.monthlyAmount }
+    val goals = snapshot.goals.filter { !it.archived }.sumOf { it.perCycle }
+    val committed = bills + emis + goals
+    if (committed <= 0) return
+    val income = snapshot.settings.usualIncome.takeIf { it > 0 } ?: snapshot.ledger.income()
+    val free = (income - committed).coerceAtLeast(0)
+    Column(
+        Modifier.fillMaxWidth().clip(Radius.xl).background(c.hero).clickable(role = Role.Button, onClick = onOpen).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            when {
+                hidden -> "Part of your income is already spoken for"
+                income > 0 -> "${Money.format(committed)} of your ${Money.format(income)} is spoken for"
+                else -> "${Money.format(committed)} a month is spoken for"
+            },
+            style = Type.bodyExtra, color = c.onHero,
+        )
+        val parts = listOf(bills to CategoryPalette.of("butter", c.isDark).bar, emis to CategoryPalette.of("sky", c.isDark).bar, goals to CategoryPalette.of("lavender", c.isDark).bar, free to c.heroNumber)
+        Row(Modifier.fillMaxWidth().height(10.dp).clip(Radius.pill), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            parts.filter { it.first > 0 }.forEach { (amount, color) -> Box(Modifier.weight(amount.toFloat()).height(10.dp).background(color)) }
+        }
+        Text(
+            if (hidden) "Bills, EMIs and goals come out first" else listOfNotNull(
+                bills.takeIf { it > 0 }?.let { "Bills ${Money.format(it)}" }, emis.takeIf { it > 0 }?.let { "EMIs ${Money.format(it)}" },
+                goals.takeIf { it > 0 }?.let { "Goals ${Money.format(it)}" }, if (income > 0) "${Money.format(free)} yours to spend" else null,
+            ).joinToString(" · "),
+            style = Type.small, color = c.onHeroMuted,
+        )
+    }
+}
+
+@Composable
+fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimits: () -> Unit, onCategories: () -> Unit, onOpenTags: () -> Unit, onOpenCheckIn: () -> Unit, onOpenBreakdown: () -> Unit, onToggleRollover: (CategoryEntity) -> Unit, onOpenSplit: () -> Unit = {}) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val hidden = snapshot.settings.hideBalances
@@ -116,6 +154,17 @@ fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimit
     var open by rememberSaveable { mutableStateOf<Long?>(null) }
 
     PlanScaffold(current = Routes.PLAN, onSelectTab = onSelectTab) {
+        SpokenFor(snapshot, hidden, onOpenBreakdown)
+        val owed = ledger.leftToSpend.comingBack
+        Card(shape = Radius.lg, padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), modifier = Modifier.clickable(role = Role.Button, onClick = onOpenSplit)) {
+            ListRow(
+                onClick = onOpenSplit,
+                leading = { Box(Modifier.size(40.dp).clip(Radius.pill).background(CategoryPalette.of("pistachio", c.isDark).tile), contentAlignment = Alignment.Center) { Icon(LeftoverIcons.People, null, tint = c.ink, modifier = Modifier.size(20.dp)) } },
+                title = "Shared with friends",
+                subtitle = if (owed > 0) "Friends owe you ${Money.display(owed, hidden)}" else "Split bills, trips and flat costs",
+                trailing = { Icon(LeftoverIcons.Chevron, null, tint = c.subtle, modifier = Modifier.size(18.dp)) },
+            )
+        }
         Card(shape = Radius.xl, padding = PaddingValues(18.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(

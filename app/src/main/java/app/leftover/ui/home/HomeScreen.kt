@@ -39,6 +39,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.leftover.data.Snapshot
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import app.leftover.domain.PaceWarning
+import app.leftover.domain.SafeToday
+import app.leftover.ui.theme.CategoryPalette
 import app.leftover.data.db.TransactionEntity
 import app.leftover.data.db.TxType
 import app.leftover.domain.Ledger
@@ -79,50 +92,58 @@ fun HomeScreen(
     onOpenReview: () -> Unit,
     onOpenBackup: () -> Unit,
     onAddBalance: () -> Unit,
+    onOpenProfile: () -> Unit = onOpenSettings,
+    onOpenSplit: () -> Unit = {},
+    onOpenPlan: () -> Unit = onOpenBills,
 ) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val hidden = snapshot.settings.hideBalances
     val left = ledger.leftToSpend
+    val safe = remember(ledger) { SafeToday.of(ledger) }
     var showHow by rememberSaveable { mutableStateOf(false) }
 
     Column(
-        Modifier.fillMaxSize().background(c.ground).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp),
+        Modifier.fillMaxSize().background(c.ground).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 132.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Header(snapshot, onToggleHide, onOpenSettings, onOpenBills)
+        Header(snapshot, onToggleHide, onOpenProfile, onOpenBills)
         if (snapshot.settings.lastBackupError != null) {
             Banner("Couldn't back up your data", c.emberBg, c.emberText, trailing = "Details", onClick = onOpenBackup)
         }
-        if (snapshot.accounts.none { it.includeInLeft && it.type != app.leftover.data.db.AccountType.CARD }) {
+        val noBalance = snapshot.accounts.none { it.includeInLeft && it.type != app.leftover.data.db.AccountType.CARD }
+        if (noBalance) {
             Banner("Add your balance to see what's safe to spend", c.lavender, c.lavenderInk, trailing = "Add balance", onClick = onAddBalance)
         }
         if (snapshot.pendingSms.isNotEmpty()) {
             val n = snapshot.pendingSms.size
             Banner("$n bank ${if (n == 1) "text needs" else "texts need"} a look", c.lavender, c.lavenderInk, trailing = "Review", onClick = onOpenReview)
         }
-        HeroCard(left, ledger.runway, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown)
-        QuickActions(onOpenVoice, onOpenAfford, onOpenInsights, onOpenGoals)
-        ComingUp(snapshot, hidden, onOpenBills)
-        InsightCard(snapshot, hidden, onOpenInsights)
+        HeroCard(snapshot, left, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown)
+        if (!noBalance) SafeTodayCard(safe, hidden, onOpenAfford)
+        QuickActions(onOpenVoice, onOpenAfford, onOpenSplit, onOpenGoals)
+        val warning = remember(ledger) { PaceWarning.worst(ledger) }
+        if (warning != null) WarningLine(warning.text(hidden), onOpenPlan) else InsightCard(snapshot, hidden, onOpenInsights)
+        CategoryTiles(snapshot, hidden, onOpenPlan)
+        NextBills(snapshot, hidden, onOpenBills)
         Recent(snapshot, hidden, onOpenActivity, onOpenTransaction)
     }
 }
 
 @Composable
-private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenSettings: () -> Unit, onOpenBills: () -> Unit) {
+private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: () -> Unit, onOpenBills: () -> Unit) {
     val c = Leftover.colors
     val hidden = snapshot.settings.hideBalances
     val name = snapshot.settings.name.ifBlank { "there" }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
-            Modifier.size(44.dp).clip(Radius.pill).background(c.lavender).clickable(role = Role.Button, onClick = onOpenSettings)
-                .semantics { contentDescription = "Profile and settings" },
+            Modifier.size(46.dp).border(2.dp, c.lime, Radius.pill).padding(3.dp).clip(Radius.pill).background(c.lavender)
+                .clickable(role = Role.Button, onClick = onOpenProfile).semantics { contentDescription = "Your profile" },
             contentAlignment = Alignment.Center,
-        ) { Text(name.take(1).uppercase(), style = Type.bodyStrong, color = c.lavenderInk) }
+        ) { Text(name.take(1).uppercase(), style = Type.bodyExtra, color = c.lavenderInk) }
         Column(Modifier.weight(1f)) {
-            Text(snapshot.today.format(DateTimeFormatter.ofPattern("EEE, d MMM")), style = Type.caption, color = c.muted)
-            Text("${UiFormat.greeting(LocalTime.now().hour)}, $name", style = Type.title, color = c.ink)
+            Text("${UiFormat.greeting(LocalTime.now().hour)},", style = Type.caption, color = c.muted)
+            Text(name, style = Type.h2, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         IconTile(if (hidden) LeftoverIcons.EyeOff else LeftoverIcons.Eye, onToggleHide, if (hidden) "Show balances" else "Hide balances")
         val dueSoon = snapshot.bills.count { snapshot.ledger.billNextDue(it) <= snapshot.today.plusDays(2) }
@@ -134,46 +155,201 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenSettings:
 }
 
 @Composable
-private fun HeroCard(left: LeftToSpend, runway: Runway, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit) {
+private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit) {
     val c = Leftover.colors
-    Column(Modifier.fillMaxWidth().clip(Radius.xl).background(c.hero).padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    val ledger = snapshot.ledger
+    val cycle = snapshot.cycle
+    val day = cycle.dayOfCycle(snapshot.today)
+    val spentNow = ledger.totalSpent(cycle)
+    val spentBefore = ledger.totalSpent(cycle.previous(), upToDayOfCycle = day)
+    Column(
+        Modifier.fillMaxWidth().let { if (c.isDark) it else it.shadow(16.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.25f), spotColor = c.ink.copy(alpha = 0.25f)) }
+            .clip(Radius.xl).background(c.hero).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Left to spend", style = Type.bodyStrong, color = c.onHero)
+            Text("Left until payday", style = Type.bodyStrong, color = c.onHero)
             Text(
-                "${left.daysUntilPayday} ${if (left.daysUntilPayday == 1) "day" else "days"} to payday",
-                style = Type.smallBold, color = c.heroNumber,
-                modifier = Modifier.clip(Radius.pill).background(c.heroNumber.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 6.dp),
+                "${left.daysUntilPayday} ${if (left.daysUntilPayday == 1) "day" else "days"} · ${UiFormat.dayMonth(cycle.nextPayday)}",
+                style = Type.smallBold, color = c.onHeroMuted,
             )
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
             Amount(left.left, hidden, Type.display48, color = c.heroNumber, modifier = Modifier.weight(1f))
             Row(
-                Modifier.height(44.dp).clip(Radius.pill).clickable(role = Role.Button, onClick = onToggleHow).padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                Modifier.height(40.dp).clip(Radius.pill).border(1.dp, c.onHeroMuted.copy(alpha = 0.4f), Radius.pill).clickable(role = Role.Button, onClick = onToggleHow).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("How?", style = Type.captionBold, color = c.onHero)
                 Icon(LeftoverIcons.ChevronDown, null, tint = c.onHero, modifier = Modifier.size(14.dp))
             }
         }
-        Row {
-            Text("About ", style = Type.body, color = c.onHeroMuted)
-            Amount(left.perDay, hidden, Type.bodyStrong, color = c.onHero)
-            Text(" a day until payday", style = Type.body, color = c.onHeroMuted)
+        if (spentBefore > 0 && !hidden) {
+            val less = spentNow <= spentBefore
+            Text(
+                "${if (less) "↓" else "↑"} ${Money.format(kotlin.math.abs(spentBefore - spentNow))} ${if (less) "less" else "more"} spent than last cycle by today",
+                style = Type.smallBold, color = if (less) c.heroNumber else c.emberText,
+                modifier = Modifier.clip(Radius.pill).background(if (less) c.heroNumber.copy(alpha = 0.14f) else c.emberBg).padding(horizontal = 10.dp, vertical = 6.dp),
+            )
         }
-        RunwayPill(runway)
-        SplitBar(left)
-        Legend(c.onHeroMuted)
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.onHeroMuted.copy(alpha = 0.25f)))
+        Row(Modifier.fillMaxWidth()) {
+            HeroStat("Came in", ledger.income(), hidden, plus = true, modifier = Modifier.weight(1f))
+            HeroStat("Spent", spentNow, hidden, minus = true, modifier = Modifier.weight(1f))
+            HeroStat("For goals", left.goalsTotal, hidden, modifier = Modifier.weight(1f))
+        }
         AnimatedVisibility(showHow) {
             Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(c.onHeroMuted.copy(alpha = 0.3f)))
+                SplitBar(left)
+                Legend(c.onHeroMuted)
                 BreakdownLine("In your accounts", left.inAccounts, false, hidden)
                 BreakdownLine("Bills before payday", left.billsTotal, true, hidden)
                 BreakdownLine("Card dues", left.cardDuesTotal, true, hidden)
                 BreakdownLine("Set aside for goals", left.goalsTotal, true, hidden)
+                RunwayPill(ledger.runway)
                 Text(
                     "See full breakdown →", style = Type.captionBold, color = c.heroNumber,
                     modifier = Modifier.clickable(role = Role.Button, onClick = onOpenBreakdown).padding(vertical = 8.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroStat(label: String, amount: Long, hidden: Boolean, modifier: Modifier = Modifier, plus: Boolean = false, minus: Boolean = false) {
+    val c = Leftover.colors
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = Type.small, color = c.onHeroMuted)
+        Text(
+            if (hidden) Money.HIDDEN else (if (plus) "+" else if (minus) "−" else "") + Money.format(amount),
+            style = Type.bodyExtra, color = if (plus) c.heroNumber else c.onHero, maxLines = 1,
+        )
+    }
+}
+
+/** The daily target: a ring of how much of today's safe amount is used, and what tomorrow looks like. */
+@Composable
+private fun SafeTodayCard(safe: SafeToday, hidden: Boolean, onOpenAfford: () -> Unit) {
+    val c = Leftover.colors
+    val ringColor = if (safe.over) c.ember else c.limeDeep
+    val track = c.track
+    val description = if (hidden) "Safe to spend today, hidden" else if (safe.over) "${Money.format(-safe.leftToday)} over today's ${Money.format(safe.target)}" else "${Money.format(safe.leftToday)} of ${Money.format(safe.target)} safe to spend today"
+    Card(shape = Radius.lg, padding = PaddingValues(16.dp), modifier = Modifier.clickable(role = Role.Button, onClickLabel = "Can I afford something?", onClick = onOpenAfford)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = description }) {
+            Canvas(Modifier.size(56.dp)) {
+                val stroke = 7.dp.toPx()
+                val inset = stroke / 2
+                drawArc(track, 0f, 360f, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
+                val remaining = if (safe.over) 1f else 1f - safe.fraction
+                if (remaining > 0f) drawArc(ringColor, -90f, 360f * remaining, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke, cap = StrokeCap.Round))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(if (safe.over) "Over today's target" else "Safe to spend today", style = Type.captionBold, color = c.muted)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(Money.display(if (safe.over) -safe.leftToday else safe.leftToday, hidden), style = Type.h2, color = if (safe.over) c.emberText else c.ink)
+                    if (!hidden) Text("  of ${Money.format(safe.target)}", style = Type.caption, color = c.muted, modifier = Modifier.padding(bottom = 2.dp))
+                }
+                val tomorrow = safe.tomorrow
+                Text(
+                    when {
+                        tomorrow == null -> "Payday tomorrow: a fresh cycle starts"
+                        hidden -> if (safe.over) "Tomorrow's amount is a little lower" else "Spend less today and tomorrow grows"
+                        safe.over -> "Spread over the ${safe.days - 1} days left, tomorrow is ${Money.format(tomorrow)}"
+                        else -> "Spend nothing more and tomorrow is ${Money.format(tomorrow)}"
+                    },
+                    style = Type.small, color = c.muted,
+                )
+            }
+            Icon(LeftoverIcons.Chevron, null, tint = c.subtle, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun WarningLine(text: String, onOpen: () -> Unit) {
+    val c = Leftover.colors
+    Card(shape = Radius.lg, padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp), modifier = Modifier.clickable(role = Role.Button, onClick = onOpen)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(40.dp).clip(Radius.pill).background(c.hero), contentAlignment = Alignment.Center) {
+                Icon(LeftoverIcons.Info, null, tint = c.heroNumber, modifier = Modifier.size(18.dp))
+            }
+            Text(text, style = Type.captionBold, color = c.ink, modifier = Modifier.weight(1f))
+            Icon(LeftoverIcons.Chevron, null, tint = c.subtle, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun SectionHead(title: String, extra: String?, action: String, onAction: () -> Unit) {
+    val c = Leftover.colors
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(title, style = Type.title, color = c.ink)
+            if (extra != null) Text("  · $extra", style = Type.captionBold, color = c.muted, modifier = Modifier.padding(bottom = 2.dp))
+        }
+        Text(action, style = Type.captionBold, color = c.positive, modifier = Modifier.clip(Radius.sm).clickable(role = Role.Button, onClick = onAction).padding(8.dp))
+    }
+}
+
+/** Where the money went this cycle, as swipeable tiles with each category's share of its limit. */
+@Composable
+private fun CategoryTiles(snapshot: Snapshot, hidden: Boolean, onOpen: () -> Unit) {
+    val c = Leftover.colors
+    val ledger = snapshot.ledger
+    val cats = remember(ledger) {
+        ledger.categories.filter { it.kind == app.leftover.data.db.CategoryKind.EXPENSE && !it.hidden }
+            .map { it to ledger.spent(it.id).coerceAtLeast(0) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(6)
+    }
+    if (cats.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHead("Spending by category", null, "See all", onOpen)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 4.dp), modifier = Modifier.padding(vertical = 2.dp)) {
+            items(cats, key = { it.first.id }) { (cat, spent) ->
+                val palette = CategoryPalette.of(cat.color, c.isDark)
+                val limit = cat.budgetLimit
+                Card(shape = Radius.lg, padding = PaddingValues(12.dp), modifier = Modifier.width(118.dp).clickable(role = Role.Button, onClick = onOpen)) {
+                    Box(Modifier.fillMaxWidth().height(54.dp).clip(Radius.md).background(palette.tile), contentAlignment = Alignment.Center) {
+                        Icon(LeftoverIcons.forKey(cat.icon), null, tint = c.ink, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(cat.name, style = Type.small, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(Money.display(spent, hidden), style = Type.bodyExtra, color = c.ink, maxLines = 1)
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth().height(5.dp).clip(Radius.pill).background(c.track)) {
+                        val share = if (limit != null && limit > 0) (spent.toFloat() / limit).coerceIn(0.03f, 1f) else 0f
+                        if (share > 0f) Box(Modifier.fillMaxWidth(share).height(5.dp).clip(Radius.pill).background(if (limit != null && spent > limit) c.ember else palette.bar))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Bills in the next 7 days as cards, with their total. They're already set aside in Left until payday. */
+@Composable
+private fun NextBills(snapshot: Snapshot, hidden: Boolean, onOpenBills: () -> Unit) {
+    val c = Leftover.colors
+    val ledger = snapshot.ledger
+    val upcoming = remember(ledger) {
+        snapshot.bills.filter { !it.archived }.map { it to ledger.billNextDue(it) }
+            .filter { !it.second.isAfter(snapshot.today.plusDays(7)) }.sortedBy { it.second }
+    }
+    if (upcoming.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHead("Next 7 days", Money.display(upcoming.sumOf { it.first.amount }, hidden), "All bills", onOpenBills)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 4.dp), modifier = Modifier.padding(vertical = 2.dp)) {
+            items(upcoming, key = { it.first.id }) { (bill, due) ->
+                val soon = !due.isAfter(snapshot.today.plusDays(1))
+                Card(shape = Radius.lg, padding = PaddingValues(14.dp), modifier = Modifier.width(128.dp).clickable(role = Role.Button, onClick = onOpenBills)) {
+                    Text(
+                        UiFormat.shortDay(due, snapshot.today), style = Type.smallBold, color = if (soon) c.emberText else c.ink,
+                        modifier = Modifier.clip(Radius.pill).background(if (soon) c.emberBg else c.surfaceAlt).padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Text(bill.name, style = Type.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Amount(bill.amount, hidden, Type.title, color = c.ink)
+                }
             }
         }
     }
@@ -234,11 +410,11 @@ private fun Legend(textColor: Color) {
 }
 
 @Composable
-private fun QuickActions(onVoice: () -> Unit, onAfford: () -> Unit, onInsights: () -> Unit, onGoals: () -> Unit) {
+private fun QuickActions(onVoice: () -> Unit, onAfford: () -> Unit, onSplit: () -> Unit, onGoals: () -> Unit) {
     val items = listOf(
-        Triple("Voice", LeftoverIcons.Mic, onVoice),
+        Triple("Say it", LeftoverIcons.Mic, onVoice),
         Triple("Afford?", LeftoverIcons.Target, onAfford),
-        Triple("Insights", LeftoverIcons.Trend, onInsights),
+        Triple("Split", LeftoverIcons.People, onSplit),
         Triple("Goals", LeftoverIcons.Savings, onGoals),
     )
     // At large text sizes the four tiles reflow to two rows of two instead of squeezing.
@@ -247,7 +423,7 @@ private fun QuickActions(onVoice: () -> Unit, onAfford: () -> Unit, onInsights: 
         items.withIndex().chunked(perRow).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (index, item) ->
-                    ActionTile(item.first, item.second, item.third, highlighted = index == 0, modifier = Modifier.weight(1f))
+                    ActionTile(item.first, item.second, item.third, highlighted = index == 1, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -258,8 +434,10 @@ private fun QuickActions(onVoice: () -> Unit, onAfford: () -> Unit, onInsights: 
 private fun ActionTile(label: String, icon: ImageVector, onClick: () -> Unit, highlighted: Boolean, modifier: Modifier = Modifier) {
     val c = Leftover.colors
     Column(
-        modifier.heightIn(min = 84.dp).clip(Radius.lg).background(if (highlighted) c.lime else c.surface).padding(vertical = 8.dp)
-            .clickable(role = Role.Button, onClick = onClick),
+        modifier.heightIn(min = 80.dp)
+            .let { if (highlighted || c.isDark) it else it.shadow(6.dp, Radius.lg, ambientColor = c.ink.copy(alpha = 0.10f), spotColor = c.ink.copy(alpha = 0.10f)) }
+            .clip(Radius.lg).background(if (highlighted) c.lime else c.surface)
+            .clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Icon(icon, null, tint = if (highlighted) c.onLime else c.ink, modifier = Modifier.size(22.dp))
@@ -267,58 +445,6 @@ private fun ActionTile(label: String, icon: ImageVector, onClick: () -> Unit, hi
         Text(label, style = Type.smallBold, color = if (highlighted) c.onLime else c.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
-
-@Composable
-private fun ComingUp(snapshot: Snapshot, hidden: Boolean, onOpenBills: () -> Unit) {
-    val c = Leftover.colors
-    val ledger = snapshot.ledger
-    val upcoming = snapshot.bills.map { it to ledger.billNextDue(it) }.sortedBy { it.second }
-    if (upcoming.isEmpty()) return
-    val shown = upcoming.take(3)
-    val more = upcoming.size - shown.size
-    val dueSoon = upcoming.filter { !it.second.isAfter(snapshot.cycle.nextPayday) }.sumOf { it.first.amount }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text("Coming up", style = Type.title, color = c.ink)
-                if (dueSoon > 0) Text("${Money.display(dueSoon, hidden)} due before payday", style = Type.small, color = c.muted)
-            }
-            Box(Modifier.heightIn(min = 44.dp).clip(Radius.sm).clickable(role = Role.Button, onClick = onOpenBills).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                Text("All bills", style = Type.captionBold, color = c.muted)
-            }
-        }
-        Column(Modifier.fillMaxWidth().clip(Radius.lg).background(c.surface).border(1.dp, c.hairline, Radius.lg)) {
-            shown.forEachIndexed { index, (bill, due) ->
-                if (index > 0) Box(Modifier.padding(start = 68.dp).fillMaxWidth().height(1.dp).background(c.hairline))
-                val soon = !due.isAfter(snapshot.today.plusDays(1))
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 68.dp).clickable(role = Role.Button, onClick = onOpenBills).padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Box(Modifier.size(44.dp).clip(Radius.sm).background(if (soon) c.emberBg else c.surfaceAlt), contentAlignment = Alignment.Center) {
-                        Icon(LeftoverIcons.forKey(bill.icon), null, tint = if (soon) c.emberText else c.ink, modifier = Modifier.size(22.dp))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(bill.name, style = Type.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val relative = UiFormat.shortDay(due, snapshot.today)
-                        Text(
-                            if (relative.contains("day") || relative == "Today") "$relative · ${UiFormat.dayMonth(due)}" else relative, style = Type.small,
-                            color = if (soon) c.emberText else c.muted, maxLines = 1,
-                        )
-                    }
-                    Amount(bill.amount, hidden, Type.bodyExtra, color = c.ink)
-                }
-            }
-            if (more > 0) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
-                Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpenBills), contentAlignment = Alignment.Center) {
-                    Text("+$more more", style = Type.captionBold, color = c.muted)
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 private fun InsightCard(snapshot: Snapshot, hidden: Boolean, onOpen: () -> Unit) {

@@ -85,7 +85,7 @@ class MainActivity : FragmentActivity() {
             val locked by viewModel.locked.collectAsState()
             val keepOutOfRecents = snapshot?.settings?.let { it.hideInSwitcher || it.appLock } == true
             LaunchedEffect(keepOutOfRecents) { hideFromRecents(keepOutOfRecents) }
-            LeftoverTheme(snapshot?.settings?.themeMode ?: ThemeMode.SYSTEM, snapshot?.settings?.pureBlack == true) {
+            LeftoverTheme(snapshot?.settings?.themeMode ?: ThemeMode.SYSTEM, snapshot?.settings?.pureBlack == true, snapshot?.settings?.accent ?: app.leftover.data.Accent.LIME, snapshot?.settings?.font ?: app.leftover.data.AppFont.MANROPE) {
                 Box(Modifier.fillMaxSize()) {
                     // While locked, nothing under the lock screen is drawn for screen readers either.
                     Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics {} else Modifier)) { AppNav(viewModel) }

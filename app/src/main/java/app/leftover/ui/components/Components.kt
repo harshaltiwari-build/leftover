@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -142,12 +143,15 @@ fun Card(
     padding: PaddingValues = PaddingValues(0.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val c = Leftover.colors
+    // Light mode lifts cards with a soft shadow; dark mode uses a hairline, since shadows vanish on dark grounds.
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .let { if (bordered && !c.isDark) it.shadow(6.dp, shape, ambientColor = c.ink.copy(alpha = 0.10f), spotColor = c.ink.copy(alpha = 0.10f)) else it }
             .clip(shape)
             .background(color)
-            .let { if (bordered) it.border(1.dp, Leftover.colors.hairline, shape) else it }
+            .let { if (bordered && c.isDark) it.border(1.dp, c.hairline, shape) else it }
             .padding(padding),
         content = content,
     )

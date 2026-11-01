@@ -50,6 +50,11 @@ import app.leftover.domain.CategoryDrivers
 import app.leftover.domain.FeeDetector
 import app.leftover.domain.Insights
 import app.leftover.domain.Money
+import app.leftover.domain.RangePreset
+import app.leftover.domain.RangeReport
+import app.leftover.ui.components.Segmented
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.width
 import app.leftover.domain.toLocalDate
 import app.leftover.ui.components.BackButton
 import app.leftover.ui.components.ButtonKind
@@ -72,16 +77,14 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                BackButton(onBack)
-                Text("Insights", style = Type.h1, color = c.ink)
-            }
+            Text("Insights", style = Type.h1, color = c.ink)
             Text(
                 "${snapshot.cycle.previous().start.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)} recap", style = Type.captionBold, color = c.heroNumber,
                 modifier = Modifier.clip(Radius.pill).background(c.hero).clickable(role = Role.Button, onClick = onOpenRecap).padding(horizontal = 14.dp, vertical = 12.dp),
             )
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            PeriodOverview(snapshot, hidden)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 LinkTile("Reports", "Any dates · PDF", onOpenReports, Modifier.weight(1f))
                 LinkTile("Ask", "Questions about your money", onOpenAsk, Modifier.weight(1f))
@@ -159,6 +162,91 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
                 Text(InsightText.kept(insights.keptPercent), style = Type.title, color = c.ink)
                 Spacer(Modifier.height(12.dp))
                 MoneyInOut(insights, hidden)
+            }
+        }
+    }
+}
+
+private enum class Period(val label: String) { WEEK("Week"), MONTH("Month"), YEAR("Year") }
+
+/** Week · Month · Year: four stat tiles for the period, and for the month, each budget against the pace of the cycle. */
+@Composable
+private fun PeriodOverview(snapshot: Snapshot, hidden: Boolean) {
+    val c = Leftover.colors
+    var period by rememberSaveable { mutableStateOf(Period.MONTH) }
+    val today = snapshot.today
+    val span = when (period) {
+        Period.WEEK -> RangePreset.LAST_7.span(today, snapshot.cycle)
+        Period.MONTH -> RangePreset.THIS_CYCLE.span(today, snapshot.cycle)
+        Period.YEAR -> RangePreset.THIS_YEAR.span(today, snapshot.cycle)
+    }
+    val r = remember(snapshot.ledger, span) { RangeReport.build(snapshot.ledger, span) }
+    Segmented(Period.entries.map { it.label }, period.label, { picked -> period = Period.entries.first { it.label == picked } })
+    val change = if (r.previousSpent > 0) ((r.spent - r.previousSpent) * 100 / r.previousSpent).toInt() else null
+    val top = r.categories.firstOrNull()
+    val since = when (period) { Period.WEEK -> "the week before"; Period.MONTH -> "the same days last cycle"; Period.YEAR -> "the same days before" }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatTile("Spent", Money.display(r.spent, hidden), change?.let { "${if (it <= 0) "↓" else "↑"} ${kotlin.math.abs(it)}% vs $since" } ?: "Nothing to compare yet", if (change != null && change <= 0) c.positive else if (change != null) c.emberText else c.muted, Modifier.weight(1f))
+            StatTile("Daily average", Money.display(r.perDay, hidden), "Over ${r.span.days} ${if (r.span.days == 1) "day" else "days"}", c.muted, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatTile("Biggest category", top?.category?.name ?: "—", top?.let { "${it.spent * 100 / r.spent.coerceAtLeast(1)}% of spending" } ?: "No spending yet", c.muted, Modifier.weight(1f))
+            val regretCount = r.entries.count { it.feeling == app.leftover.data.db.TxFeeling.REGRET }
+            StatTile("Regrets", Money.display(r.regret, hidden), if (regretCount == 0) "Mark spends on their page" else "$regretCount ${if (regretCount == 1) "spend" else "spends"} you marked", if (r.regret > 0) c.emberText else c.muted, Modifier.weight(1f))
+        }
+    }
+    if (period == Period.MONTH) BudgetVsActual(snapshot, hidden)
+}
+
+@Composable
+private fun StatTile(label: String, value: String, note: String, noteColor: Color, modifier: Modifier = Modifier) {
+    val c = Leftover.colors
+    Card(shape = Radius.lg, padding = PaddingValues(14.dp), modifier = modifier) {
+        Text(label, style = Type.smallBold, color = c.muted)
+        Text(value, style = Type.h2, color = c.ink, maxLines = 1)
+        Text(note, style = Type.small, color = noteColor, maxLines = 2)
+    }
+}
+
+/** Each budget against how far through the cycle you are: over pace, worth watching, or on pace. */
+@Composable
+private fun BudgetVsActual(snapshot: Snapshot, hidden: Boolean) {
+    val c = Leftover.colors
+    val ledger = snapshot.ledger
+    val pace = snapshot.cycle.dayOfCycle(snapshot.today).toFloat() / snapshot.cycle.totalDays
+    val rows = ledger.categories.filter { it.kind == app.leftover.data.db.CategoryKind.EXPENSE && !it.hidden && (it.budgetLimit ?: 0) > 0 }
+        .map { it to ledger.spent(it.id).coerceAtLeast(0) }.sortedByDescending { it.second.toFloat() / it.first.budgetLimit!! }
+    if (rows.isEmpty()) return
+    Card(shape = Radius.xl, padding = PaddingValues(18.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Budget vs actual", style = Type.title, color = c.ink)
+            Text("${(pace * 100).toInt()}% of the cycle gone", style = Type.smallBold, color = c.muted)
+        }
+        Spacer(Modifier.height(10.dp))
+        rows.forEach { (cat, spent) ->
+            val limit = cat.budgetLimit!!
+            val used = spent.toFloat() / limit
+            val (tag, bg, fg) = when {
+                spent > limit || used > pace + 0.15f -> Triple("Over pace", c.emberBg, c.emberText)
+                used > pace -> Triple("Watch", CategoryPalette.of("butter", c.isDark).tile, c.ink)
+                else -> Triple("On pace", if (c.isDark) c.surfaceAlt else Color(0xFFE3F0C9), c.positive)
+            }
+            val palette = CategoryPalette.of(cat.color, c.isDark)
+            Column(Modifier.padding(vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(10.dp).clip(Radius.pill).background(palette.bar))
+                    Text(cat.name, style = Type.bodyStrong, color = c.ink, modifier = Modifier.weight(1f), maxLines = 1)
+                    Text(if (hidden) Money.HIDDEN else "${Money.format(spent)} / ${Money.format(limit)}", style = Type.captionBold, color = c.ink)
+                    Text(tag, style = Type.smallBold, color = fg, modifier = Modifier.clip(Radius.pill).background(bg).padding(horizontal = 8.dp, vertical = 3.dp))
+                }
+                Box(Modifier.fillMaxWidth().height(8.dp)) {
+                    Box(Modifier.fillMaxWidth().height(8.dp).clip(Radius.pill).background(c.track))
+                    Box(Modifier.fillMaxWidth(used.coerceIn(0.02f, 1f)).height(8.dp).clip(Radius.pill).background(if (spent > limit) c.ember else palette.bar))
+                    Box(Modifier.fillMaxWidth(pace.coerceIn(0f, 1f)).height(8.dp), contentAlignment = Alignment.CenterEnd) {
+                        Box(Modifier.width(2.dp).height(14.dp).background(c.muted))
+                    }
+                }
             }
         }
     }

@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -41,25 +43,33 @@ data class Tab(val label: String, val icon: ImageVector, val route: String, val 
 val tabs = listOf(
     Tab("Home", LeftoverIcons.Home, Routes.HOME, setOf(Routes.HOME)),
     Tab("Activity", LeftoverIcons.List, Routes.ACTIVITY, setOf(Routes.ACTIVITY)),
-    Tab("Plan", LeftoverIcons.Target, Routes.PLAN, setOf(Routes.PLAN, Routes.GOALS, Routes.BILLS, Routes.WISHLIST)),
-    Tab("Split", LeftoverIcons.People, Routes.SPLIT, setOf(Routes.SPLIT)),
+    Tab("Plan", LeftoverIcons.Target, Routes.PLAN, setOf(Routes.PLAN, Routes.GOALS, Routes.BILLS, Routes.WISHLIST, Routes.SPLIT)),
+    Tab("Insights", LeftoverIcons.Trend, Routes.INSIGHTS, setOf(Routes.INSIGHTS)),
 )
 
-/** Four labelled tabs with a raised Add button in the middle, inside the thumb zone. */
+/**
+ * Four labelled tabs and a raised Add button, on a floating card inside the thumb zone. The current tab is bold with
+ * a dot above its label.
+ */
 @Composable
 fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit) {
     val c = Leftover.colors
-    Column(Modifier.fillMaxWidth().background(c.surface)) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().heightIn(min = 72.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().heightIn(min = 72.dp)
+                .let { if (c.isDark) it else it.shadow(14.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.14f), spotColor = c.ink.copy(alpha = 0.14f)) }
+                .clip(Radius.xl).background(c.surface)
+                .let { if (c.isDark) it.border(1.dp, c.hairline, Radius.xl) else it }
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceAround,
         ) {
             tabs.take(2).forEach { TabItem(it, currentRoute in it.sections, onTab) }
             Box(
-                Modifier.offset(y = (-6).dp).size(56.dp).clip(Radius.lg).background(c.hero)
-                    .clickable(role = Role.Button, onClick = onAdd).semantics { contentDescription = "Add expense" },
+                Modifier.offset(y = (-14).dp).size(60.dp)
+                    .let { if (c.isDark) it else it.shadow(10.dp, Radius.lg, ambientColor = c.ink.copy(alpha = 0.3f), spotColor = c.ink.copy(alpha = 0.3f)) }
+                    .clip(Radius.lg).background(c.hero)
+                    .clickable(role = Role.Button, onClick = onAdd).semantics { contentDescription = "Add an expense" },
                 contentAlignment = Alignment.Center,
             ) { Icon(LeftoverIcons.Plus, null, tint = c.heroNumber, modifier = Modifier.size(26.dp)) }
             tabs.drop(2).forEach { TabItem(it, currentRoute in it.sections, onTab) }
@@ -71,12 +81,11 @@ fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit)
 private fun TabItem(tab: Tab, selected: Boolean, onTab: (String) -> Unit) {
     val c = Leftover.colors
     Column(
-        Modifier.widthIn(min = 64.dp).heightIn(min = 60.dp).clip(Radius.md).clickable(role = Role.Tab) { onTab(tab.route) }.semantics { this.selected = selected },
+        Modifier.widthIn(min = 64.dp).heightIn(min = 56.dp).clip(Radius.md).clickable(role = Role.Tab) { onTab(tab.route) }.semantics { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(width = 48.dp, height = 30.dp).clip(Radius.pill).background(if (selected) c.lime else Color.Transparent), contentAlignment = Alignment.Center) {
-            Icon(tab.icon, null, tint = if (selected) c.onLime else c.muted, modifier = Modifier.size(22.dp))
-        }
+        Box(Modifier.size(6.dp).clip(Radius.pill).background(if (selected) c.ink else Color.Transparent))
+        Spacer(Modifier.height(4.dp))
         Text(tab.label, style = if (selected) Type.smallBold else Type.small, color = if (selected) c.ink else c.muted, maxLines = 1)
     }
 }
@@ -99,7 +108,7 @@ fun ToastHost(toast: Toast?, onUndo: () -> Unit, modifier: Modifier = Modifier) 
                     Text(shown.title, style = Type.bodyExtra, color = c.onHero)
                     Text(shown.subtitle, style = Type.small, color = c.onHeroMuted)
                 }
-                if (shown.undoTransactionId != null) {
+                if (shown.undoTransactionId != null || shown.restore != null) {
                     Box(
                         Modifier.height(44.dp).clip(Radius.sm).background(c.lime).clickable(role = Role.Button, onClick = onUndo).padding(horizontal = 14.dp),
                         contentAlignment = Alignment.Center,

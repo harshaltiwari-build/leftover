@@ -11,14 +11,14 @@ Leftover is a free, open-source Android money app for students, first-job earner
 - **Trustworthy accounting.** Transfers between your accounts and credit-card repayments are never counted as spending; refunds reduce spending; money friends owe you isn't counted until it arrives.
 - **Every number can show its maths.** Tap **How?** on Home to see exactly where Left to spend comes from.
 
-> **Status: early (v0.6).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
+> **Status: early (v0.7).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
 
-## What's in v0.6
+## What's in v0.7
 
 | Area | Features |
 |---|---|
 | Start | Animated opening, onboarding that records a first expense, payday and balance set-up |
-| Home | Left to spend with daily pace and breakdown, hide balances, bills coming up, insight, recent activity |
+| Home | Left until payday with a vs-last-cycle chip and Came in · Spent · For goals, **safe to spend today** with a ring and tomorrow's amount, one pace warning, category tiles, next 7 days of bills, shortcuts, recent activity; full breakdown under How? |
 | Capture | Quick add (amount first, custom keypad, any past date, new categories on the spot), expense / income / transfer, undo; **voice entry** ("spent 180 on coffee today") with a review step and a typed fallback; **share a payment screenshot** to Leftover (or pick one in Quick add) and it reads the amount, payee, date and UPI ref on the phone, guesses the category from past spends, and warns about failed payments and likely duplicates |
 | Widgets | **Left to spend** (small / medium / large, with Expense and Income buttons and today's spending) and **Quick log** (one-tap repeat spends with Undo); add buttons open a quick-entry sheet over the home screen; both follow Hide balances and dark mode. Launcher shortcuts for Expense, Income, voice and Reports |
 | Activity | Day-grouped list with sticky headers, search and filters (including Regrets and Has receipt), swipe left to delete with Undo, transaction detail (type, category, note, Needed / Worth it / Regret, receipt photo), accounts |
@@ -40,7 +40,9 @@ Leftover is a free, open-source Android money app for students, first-job earner
 | Privacy | Hide balances everywhere, optional app lock with your phone's own lock and/or a Leftover PIN (hashed, with lockout), hide in the app switcher |
 | Backup | Passphrase-encrypted backup files, scheduled backups to a folder you pick, restore from the welcome screen |
 | Voice | English and Hindi, including Hinglish ("chai pe bees rupaye") |
-| Data | CSV export, delete everything, light / dark / system theme, pure black for OLED |
+| Look | Light / dark / system theme, pure black for OLED, **accent colour** (Lime, Lavender, Peach, Sky) and **font** (Manrope, Bricolage, Plus Jakarta Sans) |
+| Profile | Entries, cycles tracked, moved to goals, kept by waiting, money rhythm, your year so far, backup status |
+| Data | CSV export, delete everything |
 
 ## Build it
 
@@ -77,7 +79,8 @@ The design lives in a Figma-style canvas with 45+ screens (foundations, onboardi
 |---|---|
 | Ground / ink | `#F8F8F2` / `#20251B` |
 | Accent | lime `#D6F478` |
-| Type | Manrope, tabular figures; scale 12 · 13 · 15 · 18 · 22 · 28 · 36 · 48 · 64 |
+| Type | Manrope by default (Bricolage Grotesque or Plus Jakarta Sans in Settings), tabular figures; scale 12 · 13 · 15 · 18 · 22 · 28 · 36 · 48 · 64 |
+| Accent | lime by default; lavender `#C9BEFA`, peach `#F6C2A0`, sky `#AFCFEA` in Settings |
 | Corners | 8 · 12 · 16 · 22 · 28 · pill |
 | Touch targets | at least 44 dp |
 
@@ -91,4 +94,4 @@ Leftover does not declare the `INTERNET` permission, so it cannot send your data
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). The Manrope font is under the SIL Open Font License ([fonts/OFL-Manrope.txt](fonts/OFL-Manrope.txt)). Screenshot reading uses [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android) and the [Tesseract](https://github.com/tesseract-ocr/tesseract) English model from [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), all under the Apache License 2.0.
+GPL-3.0. See [LICENSE](LICENSE). The Manrope, Bricolage Grotesque and Plus Jakarta Sans fonts are under the SIL Open Font License ([fonts/](fonts)). Screenshot reading uses [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android) and the [Tesseract](https://github.com/tesseract-ocr/tesseract) English model from [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), all under the Apache License 2.0.

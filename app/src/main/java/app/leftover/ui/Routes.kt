@@ -66,6 +66,7 @@ object Routes {
     const val REPORTS = "insights/reports"
     const val ASK = "insights/ask"
     const val SETTINGS = "settings"
+    const val PROFILE = "profile"
     const val SMS = "settings/sms"
     const val REMINDERS = "settings/reminders"
     const val RHYTHM = "settings/rhythm"
@@ -79,5 +80,5 @@ object Routes {
     const val MANDATES = "settings/sms/mandates"
     const val RULES = "settings/sms/rules"
 
-    val withBottomBar = setOf(HOME, ACTIVITY, PLAN, GOALS, BILLS, WISHLIST, SPLIT)
+    val withBottomBar = setOf(HOME, ACTIVITY, PLAN, GOALS, BILLS, WISHLIST, SPLIT, INSIGHTS)
 }

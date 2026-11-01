@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import app.leftover.data.Accent
+import app.leftover.data.AppFont
 import app.leftover.data.ThemeMode
 import app.leftover.data.db.CategoryEntity
 import app.leftover.data.db.CategoryKind
@@ -52,7 +54,7 @@ class QuickEntryActivity : ComponentActivity() {
         setContent {
             val snapshot by snapshots.collectAsState()
             val data = snapshot
-            LeftoverTheme(data?.settings?.themeMode ?: ThemeMode.SYSTEM, data?.settings?.pureBlack == true) {
+            LeftoverTheme(data?.settings?.themeMode ?: ThemeMode.SYSTEM, data?.settings?.pureBlack == true, data?.settings?.accent ?: Accent.LIME, data?.settings?.font ?: AppFont.MANROPE) {
                 Box(
                     Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))
                         .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = "Close") { finish() },
