@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.FeatureIcons
 import app.leftover.ui.components.FeatureIcon
-import androidx.compose.ui.graphics.Brush
 import app.leftover.ui.theme.LeftoverIcons
 import app.leftover.ui.theme.Radius
 import app.leftover.ui.theme.Type
@@ -53,14 +52,15 @@ val tabs = listOf(
 /**
  * Four tabs with icons and labels and a raised Add button, on a floating card inside the thumb zone. Five equal slots
  * keep the tabs evenly spaced around Add. The card is drawn behind the row rather than clipping it, so the raised
- * button stays whole; a short fade into the ground colour keeps lists from showing through underneath.
+ * button stays whole. There's no strip behind the bar, so the page shows around it; screens leave room at the bottom
+ * so their last item can scroll clear of it.
  */
 @Composable
 fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit) {
     val c = Leftover.colors
     Column(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(20.dp).background(Brush.verticalGradient(listOf(c.ground.copy(alpha = 0f), c.ground))))
-        Box(Modifier.fillMaxWidth().background(c.ground).navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+        // No backdrop: the bar floats and the page stays visible around and behind it.
+        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
             Box(Modifier.fillMaxWidth().height(68.dp)) {
                 Box(
                     Modifier.matchParentSize()
