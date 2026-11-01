@@ -462,8 +462,12 @@ fun Avatar(name: String, photo: String?, size: Dp, initialStyle: TextStyle, modi
     LaunchedEffect(photo) { image = withContext(Dispatchers.IO) { ProfilePhotoStore.load(context, photo, side = px)?.asImageBitmap() } }
     Box(modifier.size(size).clip(Radius.pill).background(c.lavender), contentAlignment = Alignment.Center) {
         val shown = image
-        if (shown != null) Image(shown, "Your photo", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Text(name.ifBlank { "?" }.take(1).uppercase(), style = initialStyle, color = c.lavenderInk)
+        when {
+            shown != null -> Image(shown, "Your photo", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            // No name yet (setup doesn't ask): a person, not a letter from a placeholder like "there".
+            name.isBlank() -> FeatureIcon(app.leftover.ui.theme.LeftoverIcons.Person, c.lavenderInk, size * 0.5f)
+            else -> Text(name.take(1).uppercase(), style = initialStyle, color = c.lavenderInk)
+        }
     }
 }
 

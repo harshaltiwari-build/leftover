@@ -152,7 +152,7 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: 
             Modifier.size(46.dp).border(2.dp, c.lime, Radius.pill).padding(3.dp).clip(Radius.pill)
                 .clickable(role = Role.Button, onClick = onOpenProfile).semantics { contentDescription = "Your profile" },
             contentAlignment = Alignment.Center,
-        ) { app.leftover.ui.components.Avatar(name, snapshot.settings.profilePhoto, 40.dp, Type.bodyExtra) }
+        ) { app.leftover.ui.components.Avatar(snapshot.settings.name, snapshot.settings.profilePhoto, 40.dp, Type.bodyExtra) }
         Column(Modifier.weight(1f)) {
             Text("${UiFormat.greeting(LocalTime.now().hour)},", style = Type.caption, color = c.muted)
             Text(name, style = Type.h2, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)

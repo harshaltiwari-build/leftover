@@ -87,6 +87,7 @@ object LeftoverIcons {
     val Savings by lazy { icon("jar", "M8 3h8M9 3v3a5 5 0 0 0-4 4.9V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8.1A5 5 0 0 0 15 6V3", "M9.5 14h5") }
 
     // Features
+    val Person by lazy { icon("person", circle(12f, 8f, 4f), "M4 21a8 8 0 0 1 16 0") }
     val Pie by lazy { icon("pie", circle(12f, 12f, 9f), "M12 3v9h9") }
     val Tag by lazy { icon("tag", "M3 12.6V4a1 1 0 0 1 1-1h8.6a1 1 0 0 1 0.7 0.3l7.4 7.4a1 1 0 0 1 0 1.4l-8.6 8.6a1 1 0 0 1-1.4 0l-7.4-7.4a1 1 0 0 1-0.3-0.7z", circle(7.5f, 7.5f, 1.5f)) }
     val Flag by lazy { icon("flag", "M5 21V4", "M5 4h12l-2.5 4.5L17 13H5") }

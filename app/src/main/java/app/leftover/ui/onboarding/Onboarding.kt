@@ -28,6 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -377,7 +380,13 @@ private fun BillEditor(bill: BillDraft?, draft: OnboardingDraft, beforePayday: I
     var amount by rememberSaveable(bill?.id) { mutableStateOf(bill?.rupees?.toString().orEmpty()) }
     var day by rememberSaveable(bill?.id) { mutableStateOf(bill?.dueDay?.toString().orEmpty()) }
     var problem by rememberSaveable(bill?.id) { mutableStateOf<String?>(null) }
-    Card(padding = PaddingValues(14.dp)) {
+    // Opened below the fold, behind the summary: bring the whole editor into view as soon as it appears.
+    val requester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(bill?.id) {
+        androidx.compose.runtime.withFrameNanos { }
+        requester.bringIntoView()
+    }
+    Card(padding = PaddingValues(14.dp), modifier = Modifier.bringIntoViewRequester(requester)) {
         Text(if (bill == null) "Add a bill" else "Edit ${bill.name}", style = Type.bodyExtra, color = Leftover.colors.ink)
         Spacer(Modifier.height(10.dp))
         LabeledField("Name", name, "Wi-Fi", { name = it.take(BillDrafts.MAX_NAME); problem = null }, KeyboardType.Text, capitalize = true)

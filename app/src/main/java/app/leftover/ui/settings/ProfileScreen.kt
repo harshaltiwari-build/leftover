@@ -264,7 +264,7 @@ private fun PhotoEditor(name: String, photo: String?, actions: ProfileActions) {
         Modifier.size(96.dp).border(3.dp, c.lime, Radius.pill).padding(6.dp).clip(Radius.pill)
             .clickable(role = Role.Button, onClickLabel = if (photo == null) "Add photo" else "Change photo") { open = !open },
         contentAlignment = Alignment.Center,
-    ) { Avatar(name, photo, 84.dp, Type.display36) }
+    ) { Avatar(name.takeIf { it != "You" }.orEmpty(), photo, 84.dp, Type.display36) }
     Row(
         Modifier.clip(Radius.pill).clickable(role = Role.Button) { open = !open }.padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
