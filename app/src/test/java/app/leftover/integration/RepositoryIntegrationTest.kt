@@ -189,6 +189,12 @@ class RepositoryIntegrationTest {
         assertNull(settings.settings.first().profilePhoto)
     }
 
+    @Test fun `saving shared screenshots automatically is on until switched off`() = runBlocking {
+        assertTrue(settings.settings.first().autoSaveScreenshots)
+        settings.setAutoSaveScreenshots(false)
+        assertTrue(!SettingsRepository(ApplicationProvider.getApplicationContext()).settings.first().autoSaveScreenshots)
+    }
+
     @Test fun `theme choices and pin lockout survive a restart`() = runBlocking {
         settings.setAccent(Accent.PEACH)
         settings.setFont(AppFont.JAKARTA)

@@ -20,6 +20,8 @@ import app.leftover.data.Snapshot
 import app.leftover.data.ReceiptStore
 import app.leftover.data.ProfilePhotoStore
 import app.leftover.domain.Pin
+import app.leftover.domain.Money
+import app.leftover.domain.ScreenshotAutoSave
 import app.leftover.ui.add.EntryDraft
 import app.leftover.ui.add.ScreenshotIntake
 import app.leftover.data.ThemeMode
@@ -143,16 +145,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun takeDraft(): EntryDraft? = draft.also { draft = null }
 
     /**
-     * A payment screenshot (or a payment app's text) shared from another app. It's read on the phone, and Quick add
-     * opens with the amount, payee, date and reference filled in for the person to check. Nothing saves by itself.
+     * A payment screenshot (or a payment app's text) shared from another app. It's read on the phone. A clear,
+     * successful payment saves itself with Undo (see [ScreenshotAutoSave]); anything else opens
+     * Quick add with the amount, payee, date and reference filled in for the person to check.
      */
     fun captureShared(image: Uri?, text: String?) = viewModelScope.launch {
         if (image != null) showToast(Toast("Reading your screenshot…", "On this phone · usually a second or two"))
         val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ScreenshotIntake.read(app, image, text) }
         dismissToast()
-        draft = result
-        requestRoute(Routes.addDraft(result.income))
+        handleScreenshot(result)
     }
+
+    /** One screenshot decision at a time, so the same picture shared twice can't be saved twice. */
+    private val screenshotLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Saves what was read from a screenshot when it's clear enough, or opens Quick add to check it. */
+    fun handleScreenshot(result: EntryDraft) = viewModelScope.launch { screenshotLock.withLock { decideScreenshot(result) } }
+
+    private suspend fun decideScreenshot(result: EntryDraft) {
+        val s = repository.currentSnapshot()
+        // Read the lock from the settings themselves: at a cold start [locked] may not have caught up yet.
+        val lockedNow = s.settings.appLock && !unlocked.value
+        val shot = ScreenshotAutoSave.Shot(
+            result.read, result.income, result.status, result.amount, result.merchant, result.date, result.time, result.note, result.receipt,
+        )
+        when (val decision = ScreenshotAutoSave.decide(shot, s.ledger, s.settings.autoSaveScreenshots, lockedNow)) {
+            is ScreenshotAutoSave.Decision.Save -> {
+                val id = repository.addTransaction(decision.tx)
+                requestRoute(Routes.HOME)
+                showToast(Toast("Saved ${Money.format(decision.tx.amount)} · ${decision.tx.merchant}", "From your screenshot · Undo if it's wrong", id))
+            }
+            is ScreenshotAutoSave.Decision.Ask -> {
+                draft = result
+                requestRoute(Routes.addDraft(result.income))
+            }
+        }
+    }
+
+    fun setAutoSaveScreenshots(value: Boolean) = run { settings.setAutoSaveScreenshots(value) }
 
     /** One photo change at a time, so two quick picks can't leave the setting pointing at a deleted file. */
     private val photoLock = kotlinx.coroutines.sync.Mutex()

@@ -444,7 +444,7 @@ fun AppNav(viewModel: AppViewModel) {
                         data,
                         SettingsActions(
                             onBack = { nav.popBackStack() }, onSetName = viewModel::setName, onSetHide = viewModel::setHideBalances,
-                            onSetAppLock = viewModel::setAppLock, onSetHideInSwitcher = viewModel::setHideInSwitcher,
+                            onSetAppLock = viewModel::setAppLock, onSetHideInSwitcher = viewModel::setHideInSwitcher, onSetAutoSaveScreenshots = viewModel::setAutoSaveScreenshots,
                             onOpenAccounts = { nav.navigate(Routes.ACCOUNTS) }, onOpenCategories = { nav.navigate(Routes.CATEGORIES) }, onOpenTags = { nav.navigate(Routes.TAGS) },
                             onOpenRhythm = { nav.navigate(Routes.RHYTHM) }, onOpenBills = { nav.navigate(Routes.BILLS) }, onOpenSms = { nav.navigate(Routes.SMS) },
                             onOpenReminders = { nav.navigate(Routes.REMINDERS) }, onOpenBackup = { nav.navigate(Routes.BACKUP) }, onOpenPrivacy = { nav.navigate(Routes.PRIVACY) },

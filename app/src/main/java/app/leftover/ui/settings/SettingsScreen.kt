@@ -91,6 +91,7 @@ data class SettingsActions(
     val onSetHide: (Boolean) -> Unit,
     val onSetAppLock: (Boolean) -> Unit,
     val onSetHideInSwitcher: (Boolean) -> Unit,
+    val onSetAutoSaveScreenshots: (Boolean) -> Unit = {},
     val onOpenAccounts: () -> Unit,
     val onOpenCategories: () -> Unit,
     val onOpenTags: () -> Unit,
@@ -223,6 +224,12 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
                         else -> "Off"
                     },
                     warning = s.smsTracking && !smsGranted,
+                )
+                Divider()
+                ToggleRow(
+                    "Save payment screenshots by themselves",
+                    "Share a successful payment screenshot to Leftover and it's added, with Undo. Money received, big amounts and anything unclear still ask.",
+                    s.autoSaveScreenshots, actions.onSetAutoSaveScreenshots,
                 )
             }
 

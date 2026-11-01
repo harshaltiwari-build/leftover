@@ -19,6 +19,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.leftover.LeftoverApp
 import app.leftover.MainActivity
+import app.leftover.ui.AppViewModel
+import androidx.lifecycle.ViewModelProvider
 import app.leftover.data.OnboardingAnswers
 import app.leftover.data.db.TransactionEntity
 import app.leftover.data.db.TxType
@@ -55,6 +57,11 @@ abstract class JourneyBase {
     @After fun close() {
         scenario?.close()
         runBlocking { app.repository.deleteEverything() }
+    }
+
+    /** Runs [block] with the app's view model, as the screens use it. */
+    protected fun withViewModel(block: (AppViewModel) -> Unit) {
+        scenario!!.onActivity { block(ViewModelProvider(it)[AppViewModel::class.java]) }
     }
 
     /** Opens the app without waiting for any particular screen. */

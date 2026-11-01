@@ -88,6 +88,8 @@ data class Settings(
     val font: AppFont = AppFont.MANROPE,
     /** File name of your profile photo in the app's private folder, or null for your initial. */
     val profilePhoto: String? = null,
+    /** Save a clearly read, successful payment screenshot without asking (with Undo). */
+    val autoSaveScreenshots: Boolean = true,
 ) {
     val hasPin: Boolean get() = pinHash != null && pinSalt != null
     val backupProtected: Boolean get() = backupSalt != null && backupWrappedKey != null
@@ -143,6 +145,7 @@ class SettingsRepository(private val context: Context) {
         val spendingBudget = longPreferencesKey("spending_budget")
         val font = stringPreferencesKey("font")
         val profilePhoto = stringPreferencesKey("profile_photo")
+        val autoSaveScreenshots = booleanPreferencesKey("auto_save_screenshots")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
@@ -190,6 +193,7 @@ class SettingsRepository(private val context: Context) {
         accent = this[Keys.accent]?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.LIME,
         font = this[Keys.font]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.MANROPE,
         profilePhoto = this[Keys.profilePhoto]?.takeIf(ProfilePhotoStore::isSafeName),
+        autoSaveScreenshots = this[Keys.autoSaveScreenshots] ?: true,
     )
 
     suspend fun completeOnboarding(paydayDay: Int, incomeType: String, usualIncome: Long) {
@@ -218,6 +222,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun clear() = context.dataStore.edit { it.clear() }
+
+    suspend fun setAutoSaveScreenshots(value: Boolean) = context.dataStore.edit { it[Keys.autoSaveScreenshots] = value }
 
     /** Only names the photo store made are kept; anything else clears the photo. */
     suspend fun setProfilePhoto(name: String?) = context.dataStore.edit {
