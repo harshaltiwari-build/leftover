@@ -1,5 +1,10 @@
 package app.leftover.ui.home
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import app.leftover.domain.SafeToday
+import app.leftover.domain.AffordAnswer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import app.leftover.domain.GoalImpact
@@ -70,30 +75,19 @@ fun AffordScreen(snapshot: Snapshot, onBack: () -> Unit, onAddToWishlist: (WishE
     val categories = snapshot.categories.filter { it.kind == CategoryKind.EXPENSE && !it.hidden }
     var item by rememberSaveable { mutableStateOf("") }
     var price by rememberSaveable { mutableFloatStateOf(2999f) }
+    var typed by rememberSaveable { mutableStateOf("") }
     var categoryId by rememberSaveable { mutableStateOf(categories.firstOrNull { it.name == "Shopping" }?.id ?: categories.firstOrNull()?.id) }
     val category = categories.firstOrNull { it.id == categoryId }
 
-    val result = AffordCheck.check(
-        leftNow = left.left, price = rupees(price.toLong()), daysUntilPayday = left.daysUntilPayday,
-        categorySpent = category?.let { ledger.spent(it.id) } ?: 0L, categoryLimit = category?.budgetLimit,
+    val hidden = snapshot.settings.hideBalances
+    val answer = AffordAnswer.of(
+        SafeToday.of(ledger), rupees(price.toLong()), snapshot.cycle.nextPayday, category?.name,
+        category?.let { ledger.spent(it.id) } ?: 0L, category?.budgetLimit, hidden,
     )
-    val (background, foreground) = when (result.verdict) {
+    val (background, foreground) = when (answer.verdict) {
         Verdict.COMFORTABLE -> c.lime to c.onLime
         Verdict.STRETCH -> c.lavender to c.lavenderInk
         Verdict.NOT_BEFORE_PAYDAY -> c.emberBg to c.emberText
-    }
-    val title = when (result.verdict) {
-        Verdict.COMFORTABLE -> "Yes, comfortably"
-        Verdict.STRETCH -> "You can, but it's a stretch"
-        Verdict.NOT_BEFORE_PAYDAY -> "Not before payday"
-    }
-    val body = when (result.verdict) {
-        Verdict.COMFORTABLE -> "You'd still have about ${Money.format(result.perDayAfter)} a day until payday — close to your usual ${Money.format(left.perDay)}."
-        Verdict.STRETCH -> buildString {
-            if (result.categoryOverBy != null && category != null) append("${category.name} would end up ${Money.format(result.categoryOverBy)} over budget. ")
-            append("You'd have ${Money.format(result.perDayAfter)} a day left. Waiting ${left.daysUntilPayday} days for payday costs you nothing.")
-        }
-        Verdict.NOT_BEFORE_PAYDAY -> "This is ${Money.format(result.shortBy)} more than you have free. It would come out of bills or goal money."
     }
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding().imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 16.dp)) {
@@ -121,17 +115,41 @@ fun AffordScreen(snapshot: Snapshot, onBack: () -> Unit, onAddToWishlist: (WishE
                     Text(Money.format(rupees(price.toLong())), style = Type.display36, color = c.ink)
                 }
                 Slider(
-                    value = price, onValueChange = { price = (it / 100f).toInt() * 100f }, valueRange = 500f..8000f,
+                    value = price.coerceIn(500f, 8000f), onValueChange = { price = (it / 100f).toInt() * 100f; typed = "" }, valueRange = 500f..8000f,
                     colors = SliderDefaults.colors(thumbColor = c.chipSelected, activeTrackColor = c.chipSelected, inactiveTrackColor = c.track),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(999f, 2999f, 5999f).forEach { preset -> Chip(Money.format(rupees(preset.toLong())), price == preset, { price = preset }, modifier = Modifier.weight(1f)) }
+                    listOf(999f, 2999f, 5999f).forEach { preset -> Chip(Money.format(rupees(preset.toLong())), price == preset, { price = preset; typed = "" }, modifier = Modifier.weight(1f)) }
                 }
+                Spacer(Modifier.height(10.dp))
+                // The slider covers everyday buys; bigger ones (a phone, a trip) are typed.
+                app.leftover.ui.components.LabeledField(
+                    "Type a price", typed, "25000",
+                    { text -> typed = text.filter(Char::isDigit).take(7); typed.toLongOrNull()?.takeIf { it > 0 }?.let { price = it.toFloat() } },
+                    androidx.compose.ui.text.input.KeyboardType.Number, prefix = "₹",
+                )
             }
 
-            Column(Modifier.fillMaxWidth().clip(Radius.xl).background(background).padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, style = Type.h2, color = foreground)
-                Text(body, style = Type.body, color = foreground)
+            Column(
+                Modifier.fillMaxWidth().clip(Radius.xl).background(background).padding(horizontal = 20.dp, vertical = 18.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(answer.title, style = Type.h2, color = foreground)
+                Text(answer.body, style = Type.body, color = foreground)
+            }
+
+            Card(shape = Radius.xl, padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                answer.rows.forEachIndexed { i, row ->
+                    if (i > 0) app.leftover.ui.components.Divider()
+                    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                            Text(row.name, style = Type.bodyStrong, color = c.ink, modifier = Modifier.weight(1f))
+                            Text("${row.from} → ", style = Type.caption, color = c.muted)
+                            Text(row.to, style = Type.bodyExtra, color = if (row.warning) c.emberText else c.ink)
+                        }
+                        Text(row.note, style = Type.small, color = c.muted)
+                    }
+                }
             }
 
             val goal = snapshot.goals.filter { ledger.goalSaved(it.id) < it.target }.maxByOrNull { it.perCycle }
@@ -146,31 +164,7 @@ fun AffordScreen(snapshot: Snapshot, onBack: () -> Unit, onAddToWishlist: (WishE
                 }
             }
 
-            Card(shape = Radius.xl, padding = PaddingValues(horizontal = 18.dp)) {
-                Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Left to spend", style = Type.bodyStrong, color = c.ink)
-                        Text("${Money.format(left.left)} → ${Money.format(result.leftAfter)}", style = Type.bodyExtra, color = if (result.leftAfter < 0) c.emberText else c.ink)
-                    }
-                    ProgressBar(if (left.left > 0) (result.leftAfter.toFloat() / left.left).coerceIn(0f, 1f) else 0f)
-                    Text(if (result.leftAfter < 0) "Would dip into money reserved for bills and goals" else "About ${Money.format(result.perDayAfter)} a day after buying", style = Type.small, color = c.muted)
-                }
-                if (category?.budgetLimit != null) {
-                    val spent = ledger.spent(category.id)
-                    val limit = category.budgetLimit
-                    val overNow = spent > limit
-                    Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${category.name} budget", style = Type.bodyStrong, color = c.ink)
-                            val after = spent + rupees(price.toLong())
-                            Text(if (after > limit) "${Money.format(after - limit)} over" else "${Money.format(limit - after)} left", style = Type.bodyExtra, color = if (after > limit) c.emberText else c.ink)
-                        }
-                        ProgressBar(((spent + rupees(price.toLong())).toFloat() / limit).coerceIn(0f, 1f), color = if (spent + rupees(price.toLong()) > limit) c.ember else c.ink, track = if (overNow) c.emberBg else c.track)
-                    }
-                }
-            }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             LButton(
                 "Add to wishlist · decide in 7 days", enabled = item.isNotBlank(),
                 onClick = { onAddToWishlist(WishEntity(name = item.trim(), price = rupees(price.toLong()), categoryId = categoryId, decideAt = System.currentTimeMillis() + 7 * 86_400_000L)) },
@@ -179,14 +173,18 @@ fun AffordScreen(snapshot: Snapshot, onBack: () -> Unit, onAddToWishlist: (WishE
             var remindMessage by rememberSaveable { mutableStateOf<String?>(null) }
             val gate = rememberNotificationGate(onDenied = { remindMessage = "Notifications are off, so a reminder can't show. Turn them on in Android settings." })
             val payday = snapshot.cycle.nextPayday
-            LButton("Remind me on payday", enabled = item.isNotBlank(), kind = ButtonKind.Outline, height = 52.dp, onClick = {
-                gate {
-                    OneShotReminders.schedule(context, "afford-${item.trim().lowercase()}", "It's payday", "Still thinking about ${item.trim()}? A good moment to decide.", "afford", OneShotReminders.nineAm(payday))
-                    remindMessage = "Okay. Leftover will remind you on ${UiFormat.dayMonth(payday)}."
-                }
-            })
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LButton("Remind on payday", enabled = item.isNotBlank(), kind = ButtonKind.Outline, height = 50.dp, modifier = Modifier.weight(1f), onClick = {
+                    gate {
+                        OneShotReminders.schedule(context, "afford-${item.trim().lowercase()}", "It's payday", "Still thinking about ${item.trim()}? A good moment to decide.", "afford", OneShotReminders.nineAm(payday))
+                        remindMessage = "Okay. Leftover will remind you on ${UiFormat.dayMonth(payday)}."
+                    }
+                })
+                LButton("Bought it", onBought, kind = ButtonKind.Outline, height = 50.dp, modifier = Modifier.weight(1f))
+            }
             remindMessage?.let { Text(it, style = Type.caption, color = c.muted) }
-            LButton("Bought it", onBought, kind = ButtonKind.Outline, height = 52.dp)
+            if (item.isBlank()) Text("Name it to add it to your wishlist or set a reminder.", style = Type.small, color = c.muted)
+        }
         }
     }
 }
