@@ -99,33 +99,8 @@ object LeftoverIcons {
     val Heart by lazy { icon("heart", "M12 20s-7-4.4-9-9a4.5 4.5 0 0 1 9-3 4.5 4.5 0 0 1 9 3c-2 4.6-9 9-9 9z") }
     val Image by lazy { icon("image", "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z", "m3 16 5-5 4 4 3-3 6 6", circle(15.5f, 9f, 1.5f)) }
 
-    /**
-     * An icon key for a category someone just named, from words in the name: "Chai and coffee" gets the cup, "Uber / Ola"
-     * the car. Falls back to "other".
-     */
-    fun guessKey(name: String): String {
-        val n = name.lowercase()
-        return guesses.firstOrNull { (_, words) -> words.any { it in n } }?.first ?: "other"
-    }
-
-    private val guesses = listOf(
-        "coffee" to listOf("coffee", "chai", "tea", "cafe", "café", "starbucks"),
-        "groceries" to listOf("grocer", "kirana", "vegetable", "sabzi", "blinkit", "zepto", "bigbasket", "instamart"),
-        "food" to listOf("food", "eat", "dinner", "lunch", "breakfast", "restaurant", "swiggy", "zomato", "dining"),
-        "transport" to listOf("uber", "ola", "cab", "auto", "metro", "bus", "fuel", "petrol", "diesel", "transport", "travel", "rapido", "train", "flight"),
-        "wifi" to listOf("wifi", "wi-fi", "internet", "broadband"),
-        "phone" to listOf("phone", "mobile", "recharge"),
-        "bolt" to listOf("electric", "power", "light bill", "gas"),
-        "home" to listOf("rent", "home", "house", "maintenance"),
-        "gym" to listOf("gym", "fitness", "yoga", "sport"),
-        "music" to listOf("music", "spotify"),
-        "tv" to listOf("netflix", "prime", "hotstar", "ott", "tv"),
-        "fun" to listOf("movie", "fun", "subscription", "game", "party", "outing"),
-        "shopping" to listOf("shop", "amazon", "myntra", "flipkart", "clothes", "gift"),
-        "personal" to listOf("salon", "care", "beauty", "haircut", "medicine", "health", "pharmacy"),
-        "savings" to listOf("saving", "invest", "sip", "mutual"),
-        "snacks" to listOf("snack", "chips", "sweet"),
-    )
+    /** An icon key guessed from a name someone typed. */
+    fun guessKey(name: String): String = app.leftover.domain.IconKeys.guess(name)
 
     /** Looks up an icon by the key stored on categories and bills. */
     fun forKey(key: String): ImageVector = when (key) {

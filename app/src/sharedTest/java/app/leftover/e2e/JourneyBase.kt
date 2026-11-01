@@ -57,6 +57,18 @@ abstract class JourneyBase {
         runBlocking { app.repository.deleteEverything() }
     }
 
+    /** Opens the app without waiting for any particular screen. */
+    protected fun launchApp() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+    }
+
+    /** Waits until [text] is on screen; safe to call before the first frame exists. */
+    protected fun waitForText(text: String, timeout: Long = 20_000) {
+        compose.waitUntil(timeout) {
+            runCatching { compose.onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
+        }
+    }
+
     protected fun launchHome() {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         // A cold start on a phone can take a moment before the first frame exists; until then there's nothing to query.

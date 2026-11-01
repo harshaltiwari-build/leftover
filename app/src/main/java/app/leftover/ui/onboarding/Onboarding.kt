@@ -43,6 +43,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.leftover.data.OnboardingAnswers
 import app.leftover.domain.KeypadInput
+import app.leftover.domain.BillDraft
+import app.leftover.domain.BillDrafts
+import app.leftover.ui.components.IconBadge
+import androidx.compose.foundation.layout.heightIn
 import app.leftover.domain.PayCycle
 import app.leftover.ui.Routes
 import app.leftover.ui.UiFormat
@@ -73,23 +77,13 @@ class OnboardingDraft {
     var incomeDigits by mutableStateOf("")
     var paydayLabel by mutableStateOf("")
     var balanceDigits by mutableStateOf("")
-    val billsOn = mutableStateOf(emptySet<String>())
+    /** Bills offered on the "two quick numbers" step; any can be switched on, edited or removed. */
+    var bills by mutableStateOf(BillDrafts.suggested())
 
     /** The day of the month chosen, e.g. "5th" is 5. "Last working day" is treated as the 28th and "It varies" as the 1st. */
     val paydayDay: Int get() = paydayLabel.takeWhile { it.isDigit() }.toIntOrNull() ?: if (paydayLabel == "Last working day") 28 else 1
 
-    private val suggestedBills = listOf("Spotify" to 119L, "Recharge" to 349L, "Electricity" to 682L, "Gym" to 2000L, "Card bill" to 2500L, "Rent" to 9000L)
-    /** Bills the user typed in with "Other", added after the suggestions and switched on straight away. */
-    val customBills = mutableStateOf(emptyList<Pair<String, Long>>())
-    val billOptions: List<Pair<String, Long>> get() = suggestedBills + customBills.value
-    val billsTotalRupees: Long get() = billOptions.filter { it.first in billsOn.value }.sumOf { it.second }
-
-    fun addCustomBill(name: String, rupees: Long) {
-        val clean = name.trim()
-        if (clean.isEmpty() || rupees <= 0 || billOptions.any { it.first.equals(clean, true) }) return
-        customBills.value = customBills.value + (clean to rupees)
-        billsOn.value = billsOn.value + clean
-    }
+    val billsTotalRupees: Long get() = bills.totalRupees
     val balanceRupees: Long get() = balanceDigits.toLongOrNull() ?: 0L
 
     fun toAnswers() = OnboardingAnswers(
@@ -99,7 +93,7 @@ class OnboardingDraft {
         usualIncome = rupees(incomeDigits.toLongOrNull() ?: 0L),
         paydayDay = paydayDay,
         balanceNow = rupees(balanceRupees),
-        bills = billOptions.filter { it.first in billsOn.value }.map { it.first to rupees(it.second) },
+        bills = bills.answers(),
     )
 }
 
@@ -285,9 +279,8 @@ private fun AmountField(value: String, onChange: (String) -> Unit, modifier: Mod
 fun BalanceScreen(draft: OnboardingDraft, onBack: () -> Unit, onNext: () -> Unit) {
     val c = Leftover.colors
     val left = draft.balanceRupees - draft.billsTotalRupees
-    var adding by rememberSaveable { mutableStateOf(false) }
-    var otherName by rememberSaveable { mutableStateOf("") }
-    var otherAmount by rememberSaveable { mutableStateOf("") }
+    /** The bill being edited: its id, [NEW] for "Other", or null. */
+    var editing by rememberSaveable { mutableStateOf<Int?>(null) }
     val today = LocalDate.now()
     val cycle = PayCycle.forPayday(draft.paydayDay, today)
     OnboardingFrame(step = 3, onBack = onBack, onSkip = onNext, skipLabel = "Later") {
@@ -310,29 +303,53 @@ fun BalanceScreen(draft: OnboardingDraft, onBack: () -> Unit, onNext: () -> Unit
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionLabel("Bills before ${UiFormat.dayMonth(cycle.nextPayday)}")
+                Text("Tap to add one. Tap Edit to change its name, amount or day, or to remove it.", style = Type.caption, color = c.muted)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    draft.billOptions.forEach { (name, amount) ->
-                        val on = name in draft.billsOn.value
+                    draft.bills.items.forEach { bill ->
                         Chip(
-                            text = "$name ${Money.format(rupees(amount))}",
-                            selected = on,
-                            onClick = { draft.billsOn.value = if (on) draft.billsOn.value - name else draft.billsOn.value + name },
-                            icon = if (on) LeftoverIcons.Check else LeftoverIcons.Plus,
+                            text = "${bill.name} ${Money.format(rupees(bill.rupees))}",
+                            selected = bill.on,
+                            onClick = { draft.bills = draft.bills.toggle(bill.id) },
+                            icon = if (bill.on) LeftoverIcons.Check else LeftoverIcons.Plus,
+                            onLongClick = { editing = bill.id },
+                            role = Role.Checkbox,
                         )
                     }
-                    Chip(text = "Other", selected = false, onClick = { adding = !adding }, icon = LeftoverIcons.Plus, dashed = true)
+                    Chip(text = "Other", selected = false, onClick = { editing = if (editing == NEW) null else NEW }, icon = LeftoverIcons.Plus, dashed = true, role = Role.Button)
                 }
-                if (adding) {
-                    Card(padding = PaddingValues(14.dp)) {
-                        LabeledField("What is it?", otherName, "Wi-Fi", { otherName = it.take(20) }, KeyboardType.Text, capitalize = true)
-                        Spacer(Modifier.height(10.dp))
-                        LabeledField("How much?", otherAmount, "0", { otherAmount = it.filter(Char::isDigit).take(7) }, KeyboardType.Number, prefix = "₹")
-                        Spacer(Modifier.height(12.dp))
-                        LButton("Add this bill", {
-                            draft.addCustomBill(otherName, otherAmount.toLongOrNull() ?: 0)
-                            otherName = ""; otherAmount = ""; adding = false
-                        }, kind = ButtonKind.Lime, enabled = otherName.isNotBlank() && (otherAmount.toLongOrNull() ?: 0) > 0, height = 48.dp)
+                if (editing == NEW) BillEditor(null, draft, beforePayday = cycle.nextPayday.minusDays(1).dayOfMonth) { editing = null }
+                val chosen = draft.bills.selected
+                if (chosen.isNotEmpty()) {
+                    Card(padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                        chosen.forEachIndexed { i, bill ->
+                            if (i > 0) Divider()
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                IconBadge(LeftoverIcons.forKey(app.leftover.data.LeftoverRepository.billIcon(bill.name)), c.track, c.ink, size = 34.dp)
+                                Column(Modifier.weight(1f)) {
+                                    Text(bill.name, style = Type.bodyStrong, color = c.ink, maxLines = 1)
+                                    Text(bill.dueDay?.let { "Due on the $it${ordinal(it)}" } ?: "Due the day before payday", style = Type.small, color = c.muted)
+                                }
+                                Text(Money.format(rupees(bill.rupees)), style = Type.captionBold, color = c.ink)
+                                Text(
+                                    "Edit ${bill.name}", style = Type.captionBold, color = c.ink,
+                                    modifier = Modifier.clip(Radius.sm).clickable(role = Role.Button) { editing = if (editing == bill.id) null else bill.id }
+                                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                                    maxLines = 1,
+                                )
+                            }
+                            if (editing == bill.id) {
+                                BillEditor(bill, draft, beforePayday = cycle.nextPayday.minusDays(1).dayOfMonth) { editing = null }
+                                Spacer(Modifier.height(10.dp))
+                            }
+                        }
                     }
+                }
+                // Editing a chip that's off opens its editor here.
+                draft.bills.items.firstOrNull { it.id == editing && !it.on }?.let { bill ->
+                    BillEditor(bill, draft, beforePayday = cycle.nextPayday.minusDays(1).dayOfMonth) { editing = null }
                 }
             }
         }
@@ -345,6 +362,41 @@ fun BalanceScreen(draft: OnboardingDraft, onBack: () -> Unit, onNext: () -> Unit
         }
         Spacer(Modifier.height(12.dp))
         LButton("Looks right", onNext)
+    }
+}
+
+private const val NEW = -1
+
+/**
+ * Name, amount and day of the month for one bill. With [bill] null it adds a new one. A reason shows under the fields
+ * when something doesn't make sense, and nothing is saved until it does.
+ */
+@Composable
+private fun BillEditor(bill: BillDraft?, draft: OnboardingDraft, beforePayday: Int, onDone: () -> Unit) {
+    var name by rememberSaveable(bill?.id) { mutableStateOf(bill?.name.orEmpty()) }
+    var amount by rememberSaveable(bill?.id) { mutableStateOf(bill?.rupees?.toString().orEmpty()) }
+    var day by rememberSaveable(bill?.id) { mutableStateOf(bill?.dueDay?.toString().orEmpty()) }
+    var problem by rememberSaveable(bill?.id) { mutableStateOf<String?>(null) }
+    Card(padding = PaddingValues(14.dp)) {
+        Text(if (bill == null) "Add a bill" else "Edit ${bill.name}", style = Type.bodyExtra, color = Leftover.colors.ink)
+        Spacer(Modifier.height(10.dp))
+        LabeledField("Name", name, "Wi-Fi", { name = it.take(BillDrafts.MAX_NAME); problem = null }, KeyboardType.Text, capitalize = true)
+        Spacer(Modifier.height(10.dp))
+        LabeledField("Amount", amount, "0", { amount = it.filter(Char::isDigit).take(8); problem = null }, KeyboardType.Number, prefix = "₹")
+        Spacer(Modifier.height(10.dp))
+        LabeledField("Due on", day, "$beforePayday", { day = it.filter(Char::isDigit).take(2); problem = null }, KeyboardType.Number)
+        Text("Day of the month. Leave it empty for the day before payday.", style = Type.small, color = Leftover.colors.muted, modifier = Modifier.padding(top = 4.dp))
+        problem?.let { Text(it, style = Type.captionBold, color = Leftover.colors.emberText, modifier = Modifier.padding(top = 8.dp)) }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (bill != null) LButton("Remove bill", { draft.bills = draft.bills.remove(bill.id); onDone() }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 48.dp)
+            LButton(if (bill == null) "Add bill" else "Save bill", {
+                when (val result = if (bill == null) draft.bills.add(name, amount, day) else draft.bills.edit(bill.id, name, amount, day)) {
+                    is BillDrafts.Change.Ok -> { draft.bills = result.bills; onDone() }
+                    is BillDrafts.Change.Invalid -> problem = result.message
+                }
+            }, modifier = Modifier.weight(1f), kind = ButtonKind.Lime, height = 48.dp)
+        }
     }
 }
 

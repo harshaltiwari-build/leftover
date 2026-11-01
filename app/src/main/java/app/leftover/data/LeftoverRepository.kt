@@ -95,7 +95,7 @@ data class OnboardingAnswers(
     val usualIncome: Long,
     val paydayDay: Int,
     val balanceNow: Long,
-    val bills: List<Pair<String, Long>>,
+    val bills: List<app.leftover.domain.BillAnswer>,
 )
 
 class LeftoverRepository(private val db: LeftoverDatabase, private val settingsRepository: SettingsRepository) {
@@ -192,9 +192,13 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
                 TransactionEntity(type = TxType.EXPENSE, amount = expense, accountId = accountId, categoryId = categoryId, occurredAt = System.currentTimeMillis()),
             )
         }
-        val dueDay = if (answers.paydayDay > 1) answers.paydayDay - 1 else 28
-        db.bills().insertAll(answers.bills.map { (name, amount) ->
-            BillEntity(name = name, amount = amount, dueDay = dueDay, icon = billIcon(name), accountId = accountId, isSubscription = name == "Spotify")
+        // A bill with no day of its own is due the day before payday.
+        val beforePayday = if (answers.paydayDay > 1) answers.paydayDay - 1 else 28
+        db.bills().insertAll(answers.bills.map { bill ->
+            BillEntity(
+                name = bill.name, amount = bill.amount, dueDay = (bill.dueDay ?: beforePayday).coerceIn(1, 31), icon = billIcon(bill.name),
+                accountId = accountId, isSubscription = bill.name.equals("Spotify", ignoreCase = true),
+            )
         })
         settingsRepository.completeOnboarding(answers.paydayDay, answers.incomeType, answers.usualIncome)
     }
@@ -617,7 +621,7 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
             "wi-fi", "wifi" -> "wifi"
             "ott", "netflix" -> "tv"
             "emi" -> "card"
-            else -> "calendar"
+            else -> app.leftover.domain.IconKeys.guess(name).takeIf { it != "other" } ?: "calendar"
         }
     }
 }

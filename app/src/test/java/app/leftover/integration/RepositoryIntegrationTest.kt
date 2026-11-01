@@ -13,6 +13,7 @@ import app.leftover.data.db.LeftoverDatabase
 import app.leftover.data.db.TransactionEntity
 import app.leftover.data.db.TxFeeling
 import app.leftover.data.db.TxType
+import app.leftover.domain.BillAnswer
 import app.leftover.domain.SafeToday
 import app.leftover.domain.TagTotals
 import app.leftover.domain.rupees
@@ -94,6 +95,24 @@ class RepositoryIntegrationTest {
         val saved = repo.snapshot.first().transactions.single { it.id == id }
         assertEquals(TxFeeling.REGRET, saved.feeling)
         assertEquals("receipt-1.jpg", saved.receiptFile)
+    }
+
+    @Test fun `bills from setup keep their own due day and get a fitting icon`() = runBlocking {
+        repo.deleteEverything()
+        repo.completeOnboarding(
+            OnboardingAnswers(null, null, "Salary", rupees(45_000), 10, rupees(20_000),
+                listOf(BillAnswer("Flat rent", rupees(12_000), 5), BillAnswer("Wi-Fi", rupees(599), null), BillAnswer("Odd", rupees(1), 31))),
+        )
+        val bills = repo.snapshot.first().bills.associateBy { it.name }
+        assertEquals(5, bills.getValue("Flat rent").dueDay)
+        assertEquals(rupees(12_000), bills.getValue("Flat rent").amount)
+        assertEquals("home", bills.getValue("Flat rent").icon)
+        // No day given: the day before payday.
+        assertEquals(9, bills.getValue("Wi-Fi").dueDay)
+        assertEquals("wifi", bills.getValue("Wi-Fi").icon)
+        // The 31st still has a next due date in short months.
+        val s = repo.snapshot.first()
+        assertTrue(s.ledger.billNextDue(bills.getValue("Odd")) >= s.today)
     }
 
     @Test fun `delete everything returns to first run`() = runBlocking {
