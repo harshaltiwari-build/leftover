@@ -17,9 +17,19 @@ android {
         versionName = "0.7.0"
         // Text recognition is native code. Phones are ARM; leaving out x86 keeps about 16 MB out of the APK.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // On-phone tests run against "qa": a debug build under its own app id, so they never touch the real app's data.
+    testBuildType = "qa"
+
     buildTypes {
+        create("qa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa"
+            versionNameSuffix = "-qa"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -35,6 +45,28 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        // Robolectric needs the app's resources and manifest to run screens and the database on the JVM.
+        unitTests.isIncludeAndroidResources = true
+        // Robolectric reaches into JDK internals for file descriptors; Java 17+ must be told to allow it.
+        unitTests.all {
+            // Each test class gets a fresh JVM, so app-wide singletons (settings store, WorkManager) never leak between journeys.
+            it.forkEvery = 1
+            it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED")
+        }
+    }
+
+    sourceSets {
+        // Journey tests live in one place and run twice: on the JVM with Robolectric, and on a phone.
+        getByName("test") { kotlin.directories += "src/sharedTest/java" }
+        // Database upgrade tests read the exported schemas as assets; only the test-only qa build carries them.
+        getByName("qa") { assets.srcDir("$projectDir/schemas") }
+        getByName("androidTest") {
+            kotlin.directories += "src/sharedTest/java"
+            assets.srcDir("$projectDir/schemas")
+        }
     }
 }
 
@@ -69,4 +101,25 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation("org.json:json:20240303")
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.room.testing)
+    "qaImplementation"(platform(libs.androidx.compose.bom))
+    // Declares an exported empty activity the UI tests need. Test-only qa build only: never in what ships.
+    "qaImplementation"(libs.androidx.compose.ui.test.manifest)
+
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }

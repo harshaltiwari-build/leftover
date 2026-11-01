@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Releases are debug-signed builds, so the debug manifest ships to people's phones. Compose's preview tool exports an
+  activity that any app could open to draw a screen by name, past app lock. It's only for Android Studio, so it's removed here.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity android:name="androidx.compose.ui.tooling.PreviewActivity" tools:node="remove" />
+    </application>
+</manifest>

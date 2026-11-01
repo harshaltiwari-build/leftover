@@ -13,7 +13,8 @@ Thanks for helping. Leftover is a small, privacy-first money app, and a few rule
 ## Getting set up
 
 ```bash
-./gradlew :app:testDebugUnitTest   # fast, no device needed
+./gradlew :app:testQaUnitTest          # unit, integration and journey tests on the JVM, no device needed
+./gradlew :app:connectedQaAndroidTest  # the same journeys on a phone, in a separate .qa app
 ./gradlew :app:assembleDebug
 ```
 
@@ -30,7 +31,8 @@ Changing the database? Bump the Room `version`, add a `Migration`, and commit th
 ## Pull requests
 
 - Keep them small and focused; describe what changed and why.
-- Run `./gradlew :app:testDebugUnitTest` and make sure it passes.
+- Write the test first: unit tests in `app/src/test`, integration tests (Room, settings, repository together) in `app/src/test/.../integration`, and user journeys in `app/src/sharedTest/.../e2e`, which run both on the JVM and on a phone.
+- Run `./gradlew :app:testQaUnitTest` and make sure everything passes.
 - For UI changes, include a screenshot in light and dark.
 - By contributing you agree your work is licensed under GPL-3.0.
 

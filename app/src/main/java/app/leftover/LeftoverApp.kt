@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** Manual dependency container: small enough that a DI framework would only add ceremony. */
-class LeftoverApp : Application() {
+open class LeftoverApp : Application() {
     val settings by lazy { SettingsRepository(this) }
     val database by lazy { LeftoverDatabase.create(this) }
     val repository by lazy { LeftoverRepository(database, settings) }

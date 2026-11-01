@@ -52,7 +52,8 @@ You need **JDK 17 or newer** and the **Android SDK** (API 37). Android Studio in
 git clone https://github.com/harshaltiwari-build/leftover.git
 cd leftover
 ./gradlew :app:assembleDebug     # APK in app/build/outputs/apk/debug/
-./gradlew :app:testDebugUnitTest # run the unit tests
+./gradlew :app:testQaUnitTest    # unit, integration and journey tests on the JVM
+./gradlew :app:connectedQaAndroidTest # the same journeys on a connected phone (separate .qa app)
 ```
 
 Open the folder in Android Studio to run it on a device or emulator. On first launch Android Studio creates `local.properties` with your SDK path; the repository does not include it.
