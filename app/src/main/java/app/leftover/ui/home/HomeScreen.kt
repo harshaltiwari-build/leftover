@@ -106,7 +106,7 @@ fun HomeScreen(
     var showHow by rememberSaveable { mutableStateOf(false) }
 
     Column(
-        Modifier.fillMaxSize().background(c.ground).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 132.dp),
+        Modifier.fillMaxSize().background(c.ground).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Header(snapshot, onToggleHide, onOpenProfile, onOpenBills)

@@ -109,7 +109,7 @@ fun ActivityScreen(
                 items(ActivityGroup.entries) { entry -> Chip(entry.label, group == entry, { group = entry }) }
             }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 140.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             item {
                 Column(Modifier.padding(bottom = 18.dp).clickable(role = Role.Button, onClick = onOpenInsights), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

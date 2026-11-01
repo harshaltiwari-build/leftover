@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.leftover.data.Snapshot
@@ -82,8 +83,22 @@ import java.time.LocalDate
 @Composable
 fun PlanTabs(current: String, onSelect: (String) -> Unit) {
     val entries = listOf("Budgets" to Routes.PLAN, "Goals" to Routes.GOALS, "Bills" to Routes.BILLS, "Wishlist" to Routes.WISHLIST)
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(entries) { (label, route) -> Chip(label, current == route, { if (route != current) onSelect(route) }, icon = FeatureIcons.planTabs[label]) }
+    val c = Leftover.colors
+    // Four equal tabs, icon over label, so all four fit on a phone without scrolling.
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        entries.forEach { (label, route) ->
+            val on = current == route
+            Column(
+                Modifier.weight(1f).heightIn(min = 60.dp).clip(Radius.md).background(if (on) c.chipSelected else c.surface)
+                    .border(1.dp, if (on) androidx.compose.ui.graphics.Color.Transparent else c.border, Radius.md)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Tab) { if (route != current) onSelect(route) }
+                    .semantics { selected = on }.padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+            ) {
+                FeatureIcons.planTabs[label]?.let { app.leftover.ui.components.FeatureIcon(it, if (on) c.onChipSelected else c.ink, 18.dp) }
+                Text(label, style = Type.smallBold, color = if (on) c.onChipSelected else c.ink, maxLines = 1)
+            }
+        }
     }
 }
 
@@ -95,7 +110,7 @@ fun PlanScaffold(title: String = "Plan", current: String, onSelectTab: (String) 
             Text(title, style = Type.h1, color = c.ink)
             PlanTabs(current, onSelectTab)
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 20.dp).padding(top = 14.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 20.dp).padding(top = 14.dp, bottom = 140.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             content()
         }
     }

@@ -138,7 +138,7 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
                     Text("Category", style = Type.bodyExtra, color = c.ink)
                     Spacer(Modifier.height(10.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        categories.forEach { cat -> Chip(cat.name, tx.categoryId == cat.id, { onUpdate(tx.copy(categoryId = cat.id)) }) }
+                        categories.forEach { cat -> Chip(cat.name, tx.categoryId == cat.id, { onUpdate(tx.copy(categoryId = cat.id)) }, icon = app.leftover.ui.theme.LeftoverIcons.forKey(cat.icon)) }
                     }
                 }
             }

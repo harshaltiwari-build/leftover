@@ -51,51 +51,53 @@ val tabs = listOf(
 )
 
 /**
- * Four tabs with icons and labels and a raised Add button, on a floating card inside the thumb zone. The current tab's
- * icon sits on an accent pill. The ground colour fades in behind the card so lists don't show through underneath it.
+ * Four tabs with icons and labels and a raised Add button, on a floating card inside the thumb zone. Five equal slots
+ * keep the tabs evenly spaced around Add. The card is drawn behind the row rather than clipping it, so the raised
+ * button stays whole; a short fade into the ground colour keeps lists from showing through underneath.
  */
 @Composable
 fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit) {
     val c = Leftover.colors
-    Box(
-        Modifier.fillMaxWidth()
-            .background(Brush.verticalGradient(0f to c.ground.copy(alpha = 0f), 0.3f to c.ground, 1f to c.ground))
-            .navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 18.dp),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 72.dp)
-                .let { if (c.isDark) it else it.shadow(14.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.14f), spotColor = c.ink.copy(alpha = 0.14f)) }
-                .clip(Radius.xl).background(c.surface)
-                .let { if (c.isDark) it.border(1.dp, c.hairline, Radius.xl) else it }
-                .padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            tabs.take(2).forEach { TabItem(it, currentRoute in it.sections, onTab) }
-            Box(
-                Modifier.offset(y = (-14).dp).size(60.dp)
-                    .let { if (c.isDark) it else it.shadow(10.dp, Radius.lg, ambientColor = c.ink.copy(alpha = 0.3f), spotColor = c.ink.copy(alpha = 0.3f)) }
-                    .clip(Radius.lg).background(c.hero)
-                    .clickable(role = Role.Button, onClick = onAdd).semantics { contentDescription = "Add an expense" },
-                contentAlignment = Alignment.Center,
-            ) { Icon(LeftoverIcons.Plus, null, tint = c.heroNumber, modifier = Modifier.size(26.dp)) }
-            tabs.drop(2).forEach { TabItem(it, currentRoute in it.sections, onTab) }
+    Column(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height(20.dp).background(Brush.verticalGradient(listOf(c.ground.copy(alpha = 0f), c.ground))))
+        Box(Modifier.fillMaxWidth().background(c.ground).navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+            Box(Modifier.fillMaxWidth().height(68.dp)) {
+                Box(
+                    Modifier.matchParentSize()
+                        .let { if (c.isDark) it else it.shadow(12.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.12f), spotColor = c.ink.copy(alpha = 0.12f)) }
+                        .clip(Radius.xl).background(c.surface)
+                        .let { if (c.isDark) it.border(1.dp, c.hairline, Radius.xl) else it },
+                )
+                Row(Modifier.matchParentSize().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    tabs.take(2).forEach { TabItem(it, currentRoute in it.sections, onTab, Modifier.weight(1f)) }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Box(
+                            Modifier.offset(y = (-18).dp).size(58.dp)
+                                .let { if (c.isDark) it else it.shadow(10.dp, Radius.lg, ambientColor = c.ink.copy(alpha = 0.3f), spotColor = c.ink.copy(alpha = 0.3f)) }
+                                .clip(Radius.lg).background(c.hero)
+                                .clickable(role = Role.Button, onClick = onAdd).semantics { contentDescription = "Add an expense" },
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(LeftoverIcons.Plus, null, tint = c.heroNumber, modifier = Modifier.size(26.dp)) }
+                    }
+                    tabs.drop(2).forEach { TabItem(it, currentRoute in it.sections, onTab, Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TabItem(tab: Tab, selected: Boolean, onTab: (String) -> Unit) {
+private fun TabItem(tab: Tab, selected: Boolean, onTab: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Leftover.colors
     Column(
-        Modifier.widthIn(min = 64.dp).heightIn(min = 56.dp).clip(Radius.md).clickable(role = Role.Tab) { onTab(tab.route) }.semantics { this.selected = selected },
+        modifier.heightIn(min = 56.dp).clip(Radius.md).clickable(role = Role.Tab) { onTab(tab.route) }.semantics { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(width = 48.dp, height = 28.dp).clip(Radius.pill).background(if (selected) c.lime else Color.Transparent),
+            Modifier.size(width = 44.dp, height = 26.dp).clip(Radius.pill).background(if (selected) c.lime else Color.Transparent),
             contentAlignment = Alignment.Center,
-        ) { FeatureIcon(tab.icon, if (selected) c.onLime else c.muted, 22.dp) }
-        Spacer(Modifier.height(2.dp))
+        ) { FeatureIcon(tab.icon, if (selected) c.onLime else c.muted, 20.dp) }
+        Spacer(Modifier.height(3.dp))
         Text(tab.label, style = if (selected) Type.smallBold else Type.small, color = if (selected) c.ink else c.muted, maxLines = 1)
     }
 }

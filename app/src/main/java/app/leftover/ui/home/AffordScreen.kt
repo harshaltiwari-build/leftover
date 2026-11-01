@@ -113,7 +113,7 @@ fun AffordScreen(snapshot: Snapshot, onBack: () -> Unit, onAddToWishlist: (WishE
                 }
                 Spacer(Modifier.height(12.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    categories.forEach { cat -> Chip(cat.name, cat.id == categoryId, { categoryId = cat.id }) }
+                    categories.forEach { cat -> Chip(cat.name, cat.id == categoryId, { categoryId = cat.id }, icon = app.leftover.ui.theme.LeftoverIcons.forKey(cat.icon)) }
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
