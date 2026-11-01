@@ -1,5 +1,11 @@
 package app.leftover.ui.activity
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import app.leftover.domain.FilterPeriod
+import app.leftover.domain.MoreFilters
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -77,14 +83,19 @@ fun ActivityScreen(
     onOpenImport: () -> Unit,
     onOpenReview: () -> Unit,
     onDelete: (app.leftover.data.db.TransactionEntity) -> Unit,
+    onRecategorize: (app.leftover.data.db.TransactionEntity, Long) -> Unit = { _, _ -> },
 ) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val hidden = snapshot.settings.hideBalances
     var group by rememberSaveable { mutableStateOf(ActivityGroup.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
+    var more by rememberSaveable(stateSaver = MoreFiltersSaver) { mutableStateOf(MoreFilters()) }
+    var showMore by rememberSaveable { mutableStateOf(false) }
+    var moving by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    val shown = remember(snapshot.transactions, group, query) { ActivityFilter.apply(snapshot.transactions, group, query, ledger) }
+    LaunchedEffect(ledger) { more.prunedTo(ledger).let { if (it != more) more = it } }
+    val shown = remember(snapshot.transactions, group, query, more) { ActivityFilter.apply(snapshot.transactions, group, query, ledger, more) }
     val byDay = remember(shown) { shown.groupBy { UiFormat.date(it) }.toList().sortedByDescending { it.first } }
     // Entries that belong to a split bill or a settle-up are only deleted from their detail screen, so the split stays whole.
     val linked = remember(snapshot.shared) { (snapshot.shared.expenses.mapNotNull { it.transactionId } + snapshot.shared.settlements.mapNotNull { it.transactionId }).toSet() }
@@ -106,8 +117,12 @@ fun ActivityScreen(
             }
             SearchField(query) { query = it }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Chip(if (more.count > 0) "Filters · ${more.count}" else "More filters", more.count > 0, { showMore = !showMore }, icon = LeftoverIcons.Settings, role = Role.Button)
+                }
                 items(ActivityGroup.entries) { entry -> Chip(entry.label, group == entry, { group = entry }) }
             }
+            if (showMore) MoreFiltersPanel(snapshot, more, onApply = { more = it; showMore = false }, onClose = { showMore = false })
         }
         LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 140.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             item {
@@ -155,7 +170,8 @@ fun ActivityScreen(
                         else -> RoundedCornerShape(0.dp)
                     }
                     Column(Modifier.padding(bottom = if (index == list.lastIndex) 14.dp else 0.dp)) {
-                        SwipeToDelete(enabled = !locked, onDelete = { onDelete(tx) }, shape = shape) {
+                        val canMove = tx.type == app.leftover.data.db.TxType.EXPENSE || tx.type == app.leftover.data.db.TxType.INCOME
+                        SwipeRow(canDelete = !locked, onDelete = { onDelete(tx) }, onSwipeRight = if (canMove) ({ moving = tx.id }) else null, shape = shape) {
                             Column(Modifier.fillMaxWidth().clip(shape).background(c.surface)) {
                                 if (index > 0) Divider()
                                 TransactionRow(tx, ledger, hidden) { onOpenTransaction(tx.id) }
@@ -166,54 +182,136 @@ fun ActivityScreen(
             }
             if (byDay.isNotEmpty()) {
                 item {
-                    Text("Swipe an entry left to delete it. Split bills and settle-ups are deleted from their own page.", style = Type.small, color = c.muted, modifier = Modifier.padding(horizontal = 4.dp))
+                    Text("Swipe an entry right to change its category, or left to delete it. Split bills and settle-ups are deleted from their own page.", style = Type.small, color = c.muted, modifier = Modifier.padding(horizontal = 4.dp))
                 }
             }
         }
     }
+    snapshot.transactions.firstOrNull { it.id == moving }?.let { tx ->
+        MoveCategoryDialog(snapshot, tx, onPick = { onRecategorize(tx, it); moving = null }, onDismiss = { moving = null })
+    }
 }
 
 /**
- * Drag a row left past a third of its width to delete it; anything shorter springs back. Screen readers get a
- * "Delete" action instead of the gesture.
+ * Drag a row left past a third of its width to delete it, or right to change its category; anything shorter springs
+ * back. Screen readers get "Delete" and "Change category" actions instead of the gestures.
  */
 @Composable
-private fun SwipeToDelete(enabled: Boolean, onDelete: () -> Unit, shape: androidx.compose.ui.graphics.Shape, content: @Composable () -> Unit) {
+private fun SwipeRow(canDelete: Boolean, onDelete: () -> Unit, onSwipeRight: (() -> Unit)?, shape: androidx.compose.ui.graphics.Shape, content: @Composable () -> Unit) {
     val c = Leftover.colors
-    if (!enabled) { content(); return }
+    if (!canDelete && onSwipeRight == null) { content(); return }
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }
     var width by remember { mutableFloatStateOf(1f) }
-    Box(
-        Modifier.fillMaxWidth().onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
-            .semantics { customActions = listOf(CustomAccessibilityAction("Delete") { onDelete(); true }) },
-    ) {
+    val actions = buildList {
+        if (onSwipeRight != null) add(CustomAccessibilityAction("Change category") { onSwipeRight(); true })
+        if (canDelete) add(CustomAccessibilityAction("Delete") { onDelete(); true })
+    }
+    Box(Modifier.fillMaxWidth().onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }.semantics { customActions = actions }) {
         if (offset.value < 0f) {
             Box(Modifier.matchParentSize().clip(shape).background(c.emberBg).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(if (-offset.value > width / 3) "Release to delete" else "Delete", style = Type.captionBold, color = c.emberText)
             }
         }
+        if (offset.value > 0f) {
+            Box(Modifier.matchParentSize().clip(shape).background(c.lavender).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterStart) {
+                Text(if (offset.value > width / 3) "Release to change category" else "Category", style = Type.captionBold, color = c.lavenderInk)
+            }
+        }
         Box(
-            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }.pointerInput(Unit) {
+            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }.pointerInput(canDelete, onSwipeRight != null) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
                         scope.launch {
-                            if (-offset.value > width / 3) {
-                                offset.animateTo(-width, tween(160))
-                                onDelete()
-                                offset.snapTo(0f)
-                            } else offset.animateTo(0f, spring())
+                            when {
+                                canDelete && -offset.value > width / 3 -> { offset.animateTo(-width, tween(160)); onDelete(); offset.snapTo(0f) }
+                                onSwipeRight != null && offset.value > width / 3 -> { offset.animateTo(0f, spring()); onSwipeRight() }
+                                else -> offset.animateTo(0f, spring())
+                            }
                         }
                     },
                     onDragCancel = { scope.launch { offset.animateTo(0f, spring()) } },
                 ) { change, drag ->
                     change.consume()
-                    scope.launch { offset.snapTo((offset.value + drag).coerceIn(-width, 0f)) }
+                    val min = if (canDelete) -width else 0f
+                    val max = if (onSwipeRight != null) width else 0f
+                    scope.launch { offset.snapTo((offset.value + drag).coerceIn(min, max)) }
                 }
             },
         ) { content() }
     }
 }
+
+/** Picks a new category for one entry, from the same kind (spending or income). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun MoveCategoryDialog(snapshot: Snapshot, tx: app.leftover.data.db.TransactionEntity, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    val c = Leftover.colors
+    val kind = if (tx.type == app.leftover.data.db.TxType.INCOME) app.leftover.data.db.CategoryKind.INCOME else app.leftover.data.db.CategoryKind.EXPENSE
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().clip(Radius.xl).background(c.surface).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Move ${tx.merchant.ifBlank { tx.note }.ifBlank { "this entry" }} to", style = Type.h2, color = c.ink)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                snapshot.categories.filter { it.kind == kind && !it.hidden }.forEach { cat ->
+                    Chip(cat.name, cat.id == tx.categoryId, { if (cat.id != tx.categoryId) onPick(cat.id) else onDismiss() }, icon = LeftoverIcons.forKey(cat.icon))
+                }
+            }
+            Text("Cancel", style = Type.bodyStrong, color = c.muted, modifier = Modifier.align(Alignment.End).clip(Radius.sm).clickable(role = Role.Button, onClick = onDismiss).padding(12.dp))
+        }
+    }
+}
+
+/** Category, account, cycle and amount. Changes apply when "Show results" is tapped; "Clear" removes them all. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun MoreFiltersPanel(snapshot: Snapshot, current: MoreFilters, onApply: (MoreFilters) -> Unit, onClose: () -> Unit) {
+    val c = Leftover.colors
+    var draft by remember(current) { mutableStateOf(current) }
+    var min by remember(current) { mutableStateOf(current.minRupees?.toString().orEmpty()) }
+    var max by remember(current) { mutableStateOf(current.maxRupees?.toString().orEmpty()) }
+    Column(
+        Modifier.fillMaxWidth().heightIn(max = 420.dp).clip(Radius.lg).background(c.surface).border(1.dp, c.hairline, Radius.lg)
+            .verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Category", style = Type.captionBold, color = c.muted)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            snapshot.categories.filter { !it.hidden }.forEach { cat ->
+                val on = cat.id in draft.categoryIds
+                Chip(cat.name, on, { draft = draft.copy(categoryIds = if (on) draft.categoryIds - cat.id else draft.categoryIds + cat.id) }, icon = LeftoverIcons.forKey(cat.icon), role = Role.Checkbox)
+            }
+        }
+        Text("Account", style = Type.captionBold, color = c.muted)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Chip("Any", draft.accountId == null, { draft = draft.copy(accountId = null) })
+            snapshot.accounts.forEach { a -> Chip(a.name, draft.accountId == a.id, { draft = draft.copy(accountId = a.id) }) }
+        }
+        Text("When", style = Type.captionBold, color = c.muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterPeriod.entries.forEach { p -> Chip(p.label, draft.period == p, { draft = draft.copy(period = p) }) }
+        }
+        Text("Amount", style = Type.captionBold, color = c.muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            app.leftover.ui.components.LabeledField("From", min, "0", { min = it.filter(Char::isDigit).take(7) }, androidx.compose.ui.text.input.KeyboardType.Number, modifier = Modifier.weight(1f), prefix = "₹")
+            app.leftover.ui.components.LabeledField("To", max, "Any", { max = it.filter(Char::isDigit).take(7) }, androidx.compose.ui.text.input.KeyboardType.Number, modifier = Modifier.weight(1f), prefix = "₹")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            app.leftover.ui.components.LButton("Clear", { onApply(MoreFilters()) }, modifier = Modifier.weight(1f), kind = app.leftover.ui.components.ButtonKind.Outline, height = 46.dp)
+            app.leftover.ui.components.LButton("Show results", { onApply(draft.copy(minRupees = min.toLongOrNull(), maxRupees = max.toLongOrNull())) }, modifier = Modifier.weight(1f), height = 46.dp)
+        }
+    }
+}
+
+/** Keeps the filters across rotation and process death. */
+private val MoreFiltersSaver = androidx.compose.runtime.saveable.listSaver<MoreFilters, Any>(
+    save = { listOf(it.categoryIds.toLongArray(), it.accountId ?: -1L, it.period.name, it.minRupees ?: -1L, it.maxRupees ?: -1L) },
+    restore = {
+        MoreFilters(
+            (it[0] as LongArray).toSet(), (it[1] as Long).takeIf { id -> id >= 0 }, FilterPeriod.valueOf(it[2] as String),
+            (it[3] as Long).takeIf { v -> v >= 0 }, (it[4] as Long).takeIf { v -> v >= 0 },
+        )
+    },
+)
 
 @Composable
 private fun SearchField(value: String, onChange: (String) -> Unit) {

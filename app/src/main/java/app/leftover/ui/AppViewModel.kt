@@ -80,7 +80,11 @@ sealed interface RestoreOutcome {
  * A short confirmation with Undo. Undo deletes [undoTransactionId] (something just added) or puts [restore] back
  * (something just deleted), along with its tags.
  */
-data class Toast(val title: String, val subtitle: String, val undoTransactionId: Long? = null, val restore: TransactionEntity? = null, val restoreTags: Set<Long> = emptySet())
+data class Toast(
+    val title: String, val subtitle: String, val undoTransactionId: Long? = null, val restore: TransactionEntity? = null, val restoreTags: Set<Long> = emptySet(),
+    /** An edited entry as it was before, put back by Undo. */
+    val revert: TransactionEntity? = null,
+)
 
 /** The single view model for the app: it exposes one [Snapshot] and funnels every write through the repository. */
 class AppViewModel(application: Application) : AndroidViewModel(application) {
@@ -126,6 +130,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         dismissToast()
         val id = current?.undoTransactionId
         if (id != null) run { repository.deleteTransaction(id) }
+        current?.revert?.let { before -> run { repository.updateTransaction(before) } }
         val back = current?.restore
         if (back != null) run {
             repository.addTransaction(back)
@@ -234,6 +239,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Transactions
     fun addTransaction(tx: TransactionEntity) = run { repository.addTransaction(tx) }
     fun updateTransaction(tx: TransactionEntity) = run { repository.updateTransaction(tx) }
+
+    /** Moves an entry to another category from an Activity swipe, with Undo. */
+    fun recategorize(tx: TransactionEntity, categoryId: Long) = run {
+        val name = repository.currentSnapshot().categories.firstOrNull { it.id == categoryId }?.name ?: return@run
+        repository.updateTransaction(tx.copy(categoryId = categoryId))
+        showToast(Toast("Moved to $name", tx.merchant.ifBlank { tx.note }.ifBlank { "Entry" }, revert = tx))
+    }
     fun deleteTransaction(id: Long) = run { repository.deleteTransaction(id) }
 
     // Accounts and categories

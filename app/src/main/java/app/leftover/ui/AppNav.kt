@@ -243,7 +243,7 @@ fun AppNav(viewModel: AppViewModel) {
 
                 composable(Routes.ACTIVITY) {
                     ActivityScreen(data, onOpenTransaction = { nav.navigate(Routes.tx(it)) }, onOpenAccounts = { nav.navigate(Routes.ACCOUNTS) }, onOpenInsights = { nav.switchTab(Routes.INSIGHTS) }, onOpenImport = { nav.navigate(Routes.IMPORT_CSV) }, onOpenReview = { nav.navigate(Routes.REVIEW) },
-                        onDelete = { tx -> viewModel.deleteWithUndo(tx, app.leftover.domain.TagTotals.tagsOf(tx.id, data.txTags)) })
+                        onDelete = { tx -> viewModel.deleteWithUndo(tx, app.leftover.domain.TagTotals.tagsOf(tx.id, data.txTags)) }, onRecategorize = viewModel::recategorize)
                 }
                 composable(Routes.TX, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
                     TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags, onAttachReceipt = viewModel::attachReceipt)

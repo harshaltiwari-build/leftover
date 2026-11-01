@@ -120,7 +120,7 @@ fun ToastHost(toast: Toast?, onUndo: () -> Unit, modifier: Modifier = Modifier) 
                     Text(shown.title, style = Type.bodyExtra, color = c.onHero)
                     Text(shown.subtitle, style = Type.small, color = c.onHeroMuted)
                 }
-                if (shown.undoTransactionId != null || shown.restore != null) {
+                if (shown.undoTransactionId != null || shown.restore != null || shown.revert != null) {
                     Box(
                         Modifier.height(44.dp).clip(Radius.sm).background(c.lime).clickable(role = Role.Button, onClick = onUndo).padding(horizontal = 14.dp),
                         contentAlignment = Alignment.Center,
