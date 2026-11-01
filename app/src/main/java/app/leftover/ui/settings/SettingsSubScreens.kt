@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -281,22 +282,36 @@ fun AboutScreen(onBack: () -> Unit) {
             Text("Leftover ${BuildConfig.VERSION_NAME}", style = Type.title, color = c.ink)
             Text("A money app for knowing what's safe to spend. Built for people who earn once a month and want it to last.", style = Type.caption, color = c.muted, modifier = Modifier.padding(top = 6.dp))
         }
+        val context = androidx.compose.ui.platform.LocalContext.current
         Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+            // Opens in the browser: Leftover itself still never goes online.
+            About("Website", "$WEBSITE · opens in your browser") {
+                runCatching {
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://$WEBSITE/")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }
+            Divider()
             About("Licence", "GNU GPL v3. You can read, change and share it. The full text is the LICENSE file in the project.")
             Divider()
             About("Source code", "Free and open source, with no closed-source libraries. Build it yourself from the project folder.")
             Divider()
-            About("Font", "Manrope, under the SIL Open Font Licence.")
+            About("Fonts", "Manrope, Bricolage Grotesque and Plus Jakarta Sans, under the SIL Open Font Licence.")
             Divider()
             About("Your data", "Never sold, never shared, never uploaded. There is no account to delete because there is no account.")
         }
     }
 }
 
+/** Leftover's website, without the scheme. */
+const val WEBSITE = "harshaltiwari-build.github.io/leftover"
+
 @Composable
-private fun About(title: String, text: String) {
+private fun About(title: String, text: String, onClick: (() -> Unit)? = null) {
     val c = Leftover.colors
-    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(
+        Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick) else it }.padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         Text(title, style = Type.bodyStrong, color = c.ink)
         Text(text, style = Type.small, color = c.muted)
     }

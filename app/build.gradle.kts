@@ -13,11 +13,13 @@ android {
         applicationId = "io.github.yourorg.leftover"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.8.1"
+        versionCode = 11
+        versionName = "0.8.2"
         // Text recognition is native code. Phones are ARM; leaving out x86 keeps about 16 MB out of the APK.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Website screenshot tools run only on request (am instrument ... -e screenshots true), never in test runs.
+        testInstrumentationRunnerArguments["notAnnotation"] = "app.leftover.e2e.ScreenshotsOnly"
     }
 
     // On-phone tests run against "qa": a debug build under its own app id, so they never touch the real app's data.

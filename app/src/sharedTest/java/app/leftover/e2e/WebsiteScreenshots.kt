@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
  * Screenshots for the website, with made-up demo data in the separate "qa" app. Skipped unless run with
  * `-e screenshots true` on a phone; never part of the normal suites. Images land in the qa app's files/shots folder.
  */
+@ScreenshotsOnly
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class WebsiteScreenshots : JourneyBase() {
