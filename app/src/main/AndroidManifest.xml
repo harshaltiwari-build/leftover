@@ -91,6 +91,7 @@
         <!-- Quick entry from a widget, as a sheet over the launcher. Its own task, so saving returns to the home screen. -->
         <activity
             android:name=".QuickEntryActivity"
+            android:screenOrientation="portrait"
             android:exported="false"
             android:excludeFromRecents="true"
             android:taskAffinity=""
@@ -100,6 +101,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="portrait"
             android:exported="true"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">

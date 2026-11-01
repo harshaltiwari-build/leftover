@@ -40,6 +40,7 @@ class OnboardingBillsJourneyTest : JourneyBase() {
 
         // Edit a suggestion.
         compose.onNodeWithText("Rent ₹9,000").performScrollTo().performClick()
+        waitForText("Edit Rent")
         compose.onNodeWithText("Edit Rent").performScrollTo().performClick()
         field("Name").performTextReplacement("Flat rent")
         field("Amount").performTextReplacement("12000")
@@ -49,6 +50,7 @@ class OnboardingBillsJourneyTest : JourneyBase() {
 
         // Switch one on, then remove it.
         compose.onNodeWithText("Spotify ₹119").performScrollTo().performClick()
+        waitForText("Edit Spotify")
         compose.onNodeWithText("Edit Spotify").performScrollTo().performClick()
         compose.onNodeWithText("Remove bill").performScrollTo().performClick()
         compose.onAllNodesWithText("Spotify", substring = true).assertCountEquals(0)
