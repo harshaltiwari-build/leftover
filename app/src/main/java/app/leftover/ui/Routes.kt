@@ -25,6 +25,8 @@ object Routes {
     fun tx(id: Long) = "activity/tx/$id"
     const val ACCOUNTS = "accounts"
     const val ADD_ACCOUNT = "accounts/add?type={type}"
+    const val EDIT_ACCOUNT = "accounts/edit/{id}"
+    fun editAccount(id: Long) = "accounts/edit/$id"
     fun addAccount(type: String? = null) = if (type == null) "accounts/add" else "accounts/add?type=$type"
     const val CASH = "accounts/cash/{id}"
     fun cash(id: Long) = "accounts/cash/$id"

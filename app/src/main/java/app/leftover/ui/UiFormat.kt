@@ -53,7 +53,7 @@ object UiFormat {
     /** The label for a transaction row: merchant, or the category, or the type as a last resort. */
     fun title(tx: TransactionEntity, ledger: Ledger): String = when {
         tx.merchant.isNotBlank() -> tx.merchant
-        tx.type == TxType.TRANSFER -> "${ledger.accounts.firstOrNull { it.id == tx.accountId }?.name ?: "Account"} → ${ledger.accounts.firstOrNull { it.id == tx.toAccountId }?.name ?: "Account"}"
+        tx.type == TxType.TRANSFER -> "${ledger.accountName(tx.accountId) ?: "Account"} → ${ledger.accountName(tx.toAccountId) ?: "Account"}"
         else -> ledger.category(tx.categoryId)?.name ?: tx.type.label()
     }
 
@@ -61,13 +61,13 @@ object UiFormat {
     fun tag(tx: TransactionEntity, ledger: Ledger): String? = when (tx.type) {
         TxType.REFUND -> "Refund"
         TxType.REPAYMENT -> "Repayment"
-        TxType.TRANSFER -> if (ledger.accounts.firstOrNull { it.id == tx.toAccountId }?.type == app.leftover.data.db.AccountType.CARD) "Card payment" else "Not spending"
+        TxType.TRANSFER -> if (ledger.account(tx.toAccountId)?.type == app.leftover.data.db.AccountType.CARD) "Card payment" else "Not spending"
         TxType.SETTLE_OUT -> "Not spending"
         else -> null
     }
 
     fun subtitle(tx: TransactionEntity, ledger: Ledger): String {
-        val account = ledger.accounts.firstOrNull { it.id == tx.accountId }?.name
+        val account = ledger.accountName(tx.accountId)
         val category = ledger.category(tx.categoryId)?.name
         return when (tx.type) {
             TxType.TRANSFER -> "Own accounts"

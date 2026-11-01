@@ -246,7 +246,23 @@ fun AppNav(viewModel: AppViewModel) {
                 composable(Routes.TX, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
                     TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags, onAttachReceipt = viewModel::attachReceipt)
                 }
-                composable(Routes.ACCOUNTS) { AccountsScreen(data, onBack = { nav.popBackStack() }, onAdd = { nav.navigate(Routes.addAccount()) }, onAddCash = { nav.navigate(Routes.addAccount("CASH")) }, onOpenCard = { nav.navigate(Routes.card(it)) }, onOpenCash = { nav.navigate(Routes.cash(it)) }, onOpenGoals = { nav.switchTab(Routes.GOALS) }) }
+                composable(Routes.ACCOUNTS) { AccountsScreen(data, onBack = { nav.popBackStack() }, onAdd = { nav.navigate(Routes.addAccount()) }, onAddCash = { nav.navigate(Routes.addAccount("CASH")) }, onOpenCard = { nav.navigate(Routes.card(it)) }, onOpenCash = { nav.navigate(Routes.cash(it)) }, onOpenGoals = { nav.switchTab(Routes.GOALS) }, onEdit = { nav.navigate(Routes.editAccount(it)) }) }
+                composable(Routes.EDIT_ACCOUNT, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
+                    val id = backStack.arguments?.getLong("id") ?: 0L
+                    val account = (data.accounts + data.hiddenAccounts).firstOrNull { it.id == id }
+                    if (account == null) LaunchedEffect(Unit) { nav.popBackStack() }
+                    else AddAccountScreen(
+                        onClose = { nav.popBackStack() }, onSave = viewModel::updateAccount, existing = account,
+                        currentBalance = data.ledger.balance(account.id), accounts = data.accounts,
+                        onSetHidden = viewModel::setAccountHidden,
+                        onOpenDetail = when (account.type) {
+                            app.leftover.data.db.AccountType.CARD -> ({ nav.navigate(Routes.card(id)) })
+                            app.leftover.data.db.AccountType.CASH -> ({ nav.navigate(Routes.cash(id)) })
+                            app.leftover.data.db.AccountType.SAVINGS -> ({ nav.switchTab(Routes.GOALS) })
+                            else -> null
+                        },
+                    )
+                }
                 composable(Routes.CASH, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
                     CashScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onAddTransaction = viewModel::addTransaction, onUpdateAccount = viewModel::updateAccount)
                 }

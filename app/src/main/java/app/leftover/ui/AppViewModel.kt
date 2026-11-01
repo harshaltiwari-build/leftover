@@ -209,6 +209,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Accounts and categories
     fun addAccount(account: AccountEntity) = run { repository.addAccount(account) }
     fun updateAccount(account: AccountEntity) = run { repository.updateAccount(account) }
+    fun setAccountHidden(account: AccountEntity, hidden: Boolean) = run { repository.setAccountHidden(account, hidden) }
     fun mergeCategory(from: Long, into: Long) = run { repository.mergeCategory(from, into) }
     fun addCategory(category: CategoryEntity) = run { repository.addCategory(category) }
     fun updateCategory(category: CategoryEntity) = run { repository.updateCategory(category) }

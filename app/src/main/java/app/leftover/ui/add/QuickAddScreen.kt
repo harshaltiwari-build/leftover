@@ -142,7 +142,7 @@ fun QuickAddScreen(
         waitingForTag?.let { name -> snapshot.tags.firstOrNull { it.name.equals(name, true) }?.let { tagIds = tagIds + it.id; waitingForTag = null } }
     }
 
-    val spendAccounts = snapshot.accounts.filter { it.type != app.leftover.data.db.AccountType.SAVINGS }
+    val spendAccounts = snapshot.accounts.filter { it.type != app.leftover.data.db.AccountType.SAVINGS && !it.archived }
     val fromAccount = spendAccounts.firstOrNull { it.id == accountId } ?: spendAccounts.firstOrNull()
     val toAccount = spendAccounts.firstOrNull { it.id == toAccountId && it.id != fromAccount?.id } ?: spendAccounts.firstOrNull { it.id != fromAccount?.id }
     // Categories you used most recently come first, so the usual one is a tap away.

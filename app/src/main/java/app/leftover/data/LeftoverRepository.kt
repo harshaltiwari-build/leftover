@@ -62,6 +62,8 @@ data class Snapshot(
     val challenges: List<ChallengeEntity> = emptyList(),
     val recurring: List<RecurringSplitEntity> = emptyList(),
     val pendingSms: List<PendingSmsEntity> = emptyList(),
+    /** Accounts you've hidden. They're left out of [accounts], the ledger and every picker. */
+    val hiddenAccounts: List<AccountEntity> = emptyList(),
 ) {
     val accounts get() = ledger.accounts
     val categories get() = ledger.categories
@@ -106,6 +108,7 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
         val transactions: List<TransactionEntity>,
         val goals: List<GoalEntity>,
         val bills: List<BillEntity>,
+        val hiddenAccounts: List<AccountEntity>,
     )
 
     private data class SharedTables(
@@ -142,12 +145,12 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
 
     val snapshot: Flow<Snapshot> = combine(
         combine(
-            db.accounts().observeAll(),
+            combine(db.accounts().observeAll(), db.accounts().observeHidden()) { shown, hidden -> shown to hidden },
             db.categories().observeAll(),
             db.transactions().observeAll(),
             db.goals().observeAll(),
             db.bills().observeAll(),
-        ) { accounts, categories, transactions, goals, bills -> Tables(accounts, categories, transactions, goals, bills) },
+        ) { accounts, categories, transactions, goals, bills -> Tables(accounts.first, categories, transactions, goals, bills, accounts.second) },
         extras,
         sharedTables,
         db.shared().observeSettlements(),
@@ -160,11 +163,12 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
             ledger = Ledger(
                 tables.accounts, tables.categories, tables.transactions, tables.goals, tables.bills, cycle, today,
                 shared = SharedBook(sharedTables.people, sharedTables.groups, sharedTables.members, sharedTables.expenses, sharedTables.shares, settlements),
-                emis = extras.emis,
+                emis = extras.emis, hiddenAccounts = tables.hiddenAccounts,
             ),
             wishes = extras.wishes,
             smsSenders = extras.senders,
             pendingSms = extras.pending,
+            hiddenAccounts = tables.hiddenAccounts,
             emis = extras.emis,
             rules = extras.rules,
             mandates = extras.mandates,
@@ -228,6 +232,18 @@ class LeftoverRepository(private val db: LeftoverDatabase, private val settingsR
 
     suspend fun addAccount(account: AccountEntity): Long = db.accounts().insert(account)
     suspend fun updateAccount(account: AccountEntity) = db.accounts().update(account)
+
+    /**
+     * Hides or shows an account. Hiding also unhooks bills and repeating splits from it, so nothing can put money into
+     * an account you can't see; they fall back to your main account.
+     */
+    suspend fun setAccountHidden(account: AccountEntity, hidden: Boolean) = db.withTransaction {
+        db.accounts().update(account.copy(archived = hidden))
+        if (hidden) {
+            db.bills().all().filter { it.accountId == account.id }.forEach { db.bills().upsert(it.copy(accountId = null)) }
+            db.more().allRecurring().filter { it.accountId == account.id }.forEach { db.more().updateRecurring(it.copy(accountId = null)) }
+        }
+    }
 
     suspend fun updateCategory(category: CategoryEntity) = db.categories().update(category)
     suspend fun updateCategories(categories: List<CategoryEntity>) = db.categories().updateAll(categories)

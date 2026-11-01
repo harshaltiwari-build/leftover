@@ -63,9 +63,9 @@ abstract class JourneyBase {
     }
 
     /** Waits until [text] is on screen; safe to call before the first frame exists. */
-    protected fun waitForText(text: String, timeout: Long = 20_000) {
+    protected fun waitForText(text: String, timeout: Long = 20_000, substring: Boolean = false) {
         compose.waitUntil(timeout) {
-            runCatching { compose.onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
+            runCatching { compose.onAllNodes(hasText(text, substring = substring)).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
         }
     }
 

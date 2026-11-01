@@ -103,8 +103,8 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
         return
     }
 
-    val account = snapshot.accounts.firstOrNull { it.id == tx.accountId }
-    val toAccount = snapshot.accounts.firstOrNull { it.id == tx.toAccountId }
+    val account = snapshot.ledger.account(tx.accountId)
+    val toAccount = snapshot.ledger.account(tx.toAccountId)
     val categories = snapshot.categories.filter { !it.hidden && it.kind == if (tx.type == TxType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE }
     var note by remember(tx.id) { mutableStateOf(tx.note) }
     val splitExpense = snapshot.shared.expenses.firstOrNull { it.transactionId == tx.id }

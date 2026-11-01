@@ -28,7 +28,14 @@ class Ledger(
     val today: LocalDate,
     val shared: SharedBook = SharedBook.Empty,
     val emis: List<EmiEntity> = emptyList(),
+    /** Accounts you've hidden: not counted anywhere, only used to name their old entries. */
+    val hiddenAccounts: List<AccountEntity> = emptyList(),
 ) {
+    /** Any account by id, hidden ones included, for showing old entries. */
+    fun account(id: Long?): AccountEntity? = id?.let { wanted -> accounts.firstOrNull { it.id == wanted } ?: hiddenAccounts.firstOrNull { it.id == wanted } }
+
+    fun accountName(id: Long?): String? = account(id)?.name
+
     private val categoryById = categories.associateBy { it.id }
 
     fun category(id: Long?): CategoryEntity? = id?.let { categoryById[it] }

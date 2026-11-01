@@ -115,6 +115,37 @@ class RepositoryIntegrationTest {
         assertTrue(s.ledger.billNextDue(bills.getValue("Odd")) >= s.today)
     }
 
+    @Test fun `editing an account's balance keeps its entries and updates left to spend`() = runBlocking {
+        repo.addTransaction(TransactionEntity(type = TxType.EXPENSE, amount = rupees(2_550), accountId = account(), categoryId = food(), occurredAt = now()))
+        val s = repo.snapshot.first()
+        val main = s.accounts.single()
+        val edited = (app.leftover.domain.AccountForm.save(main, main.type, s.ledger.balance(main.id), "HDFC", "8000", true, "", "", s.accounts) as app.leftover.domain.AccountForm.Result.Ok).account
+        repo.updateAccount(edited)
+        val after = repo.snapshot.first()
+        assertEquals("HDFC", after.accounts.single().name)
+        assertEquals(rupees(8_000), after.ledger.balance(main.id))
+        assertEquals(rupees(8_000), after.ledger.leftToSpend.left)
+        assertEquals(1, after.transactions.size)
+    }
+
+    // Attack: a hidden account must not quietly receive new money, and its old entries keep its name.
+    @Test fun `hiding an account unhooks bills from it and keeps its name on old entries`() = runBlocking {
+        val oldId = repo.addAccount(app.leftover.data.db.AccountEntity(name = "Old savings", type = app.leftover.data.db.AccountType.BANK, openingBalance = 0, includeInLeft = true))
+        repo.addTransaction(TransactionEntity(type = TxType.INCOME, amount = rupees(100), accountId = oldId, categoryId = food(), occurredAt = now()))
+        repo.addTransaction(TransactionEntity(type = TxType.EXPENSE, amount = rupees(100), accountId = oldId, categoryId = food(), occurredAt = now()))
+        db.bills().insertAll(listOf(app.leftover.data.db.BillEntity(name = "Wi-Fi", amount = rupees(599), dueDay = 10, icon = "wifi", accountId = oldId)))
+        val old = repo.snapshot.first().accounts.single { it.id == oldId }
+        repo.setAccountHidden(old, true)
+        val s = repo.snapshot.first()
+        assertTrue(s.accounts.none { it.id == oldId })
+        assertEquals(null, s.bills.single { it.name == "Wi-Fi" }.accountId)
+        assertEquals("Old savings", s.ledger.accountName(oldId))
+        // The Wi-Fi bill still counts; the hidden account's empty balance changes nothing.
+        assertEquals(rupees(10_000 - 599), s.ledger.leftToSpend.left)
+        repo.setAccountHidden(s.hiddenAccounts.single(), false)
+        assertTrue(repo.snapshot.first().accounts.any { it.id == oldId })
+    }
+
     @Test fun `delete everything returns to first run`() = runBlocking {
         repo.addTransaction(TransactionEntity(type = TxType.EXPENSE, amount = rupees(100), accountId = account(), categoryId = food(), occurredAt = now()))
         repo.deleteEverything()

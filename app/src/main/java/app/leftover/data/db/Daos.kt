@@ -13,6 +13,10 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE archived = 0 ORDER BY type, createdAt")
     fun observeAll(): Flow<List<AccountEntity>>
 
+    /** Accounts you've hidden: kept so they can be shown again. */
+    @Query("SELECT * FROM accounts WHERE archived = 1 ORDER BY type, createdAt")
+    fun observeHidden(): Flow<List<AccountEntity>>
+
     @Query("SELECT * FROM accounts WHERE id = :id")
     suspend fun get(id: Long): AccountEntity?
 
