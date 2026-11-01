@@ -59,6 +59,21 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import app.leftover.data.ProfilePhotoStore
+import app.leftover.ui.theme.FeatureIcons
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import app.leftover.domain.Money
 import app.leftover.domain.Paise
 import app.leftover.ui.theme.CategoryPalette
@@ -197,7 +212,7 @@ fun Chip(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, if (center) Alignment.CenterHorizontally else Alignment.Start),
     ) {
-        if (icon != null) Icon(icon, null, tint = fg, modifier = Modifier.size(16.dp))
+        if (icon != null) FeatureIcon(icon, fg, 16.dp)
         // One line normally; at large text sizes the label may use two, but never breaks inside a word on a single-line chip.
         Text(text, style = Type.captionBold, color = fg, maxLines = if (LocalDensity.current.fontScale >= 1.3f) 2 else 1, softWrap = LocalDensity.current.fontScale >= 1.3f, textAlign = if (center) TextAlign.Center else TextAlign.Start)
     }
@@ -405,18 +420,49 @@ fun LabeledField(
 
 /** A settings line: title and helper on the left, an optional value and a chevron on the right. A warning tints the value. */
 @Composable
-fun SettingsRow(title: String, helper: String?, onClick: () -> Unit, modifier: Modifier = Modifier, value: String? = null, warning: Boolean = false) {
+fun SettingsRow(
+    title: String, helper: String?, onClick: () -> Unit, modifier: Modifier = Modifier, value: String? = null, warning: Boolean = false,
+    icon: ImageVector? = FeatureIcons.settings[title],
+) {
     val c = Leftover.colors
     Row(
         modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (icon != null) IconBadge(icon, c.track, c.ink)
         Column(Modifier.weight(1f)) {
             Text(title, style = Type.bodyStrong, color = c.ink)
             if (helper != null) Text(helper, style = Type.small, color = c.muted)
         }
         if (value != null) Text(value, style = Type.captionBold, color = if (warning) c.emberText else c.muted)
         Icon(LeftoverIcons.Chevron, null, tint = c.muted, modifier = Modifier.size(18.dp))
+    }
+}
+
+/** A decorative icon. Tagged with its name so tests can check every feature shows one. */
+@Composable
+fun FeatureIcon(icon: ImageVector, tint: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
+    Icon(icon, null, tint = tint, modifier = modifier.size(size).testTag("icon:${icon.name}"))
+}
+
+/** An icon on a small rounded tile, leading a row. */
+@Composable
+fun IconBadge(icon: ImageVector, background: Color, tint: Color, size: Dp = 38.dp) {
+    Box(Modifier.size(size).clip(Radius.sm).background(background), contentAlignment = Alignment.Center) { FeatureIcon(icon, tint, 20.dp) }
+}
+
+/** Your profile photo, or your initial on lavender when there isn't one. */
+@Composable
+fun Avatar(name: String, photo: String?, size: Dp, initialStyle: TextStyle, modifier: Modifier = Modifier) {
+    val c = Leftover.colors
+    val context = LocalContext.current
+    val px = with(LocalDensity.current) { size.roundToPx() }
+    var image by remember(photo) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(photo) { image = withContext(Dispatchers.IO) { ProfilePhotoStore.load(context, photo, side = px)?.asImageBitmap() } }
+    Box(modifier.size(size).clip(Radius.pill).background(c.lavender), contentAlignment = Alignment.Center) {
+        val shown = image
+        if (shown != null) Image(shown, "Your photo", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else Text(name.ifBlank { "?" }.take(1).uppercase(), style = initialStyle, color = c.lavenderInk)
     }
 }

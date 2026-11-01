@@ -170,9 +170,7 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Card(padding = PaddingValues(16.dp)) {
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(Modifier.padding(top = 26.dp).size(52.dp).clip(Radius.pill).background(c.lavender), contentAlignment = Alignment.Center) {
-                        Text(name.ifBlank { "?" }.take(1).uppercase(), style = Type.h2, color = c.lavenderInk)
-                    }
+                    app.leftover.ui.components.Avatar(name, s.profilePhoto, 52.dp, Type.h2, Modifier.padding(top = 26.dp))
                     Column(Modifier.weight(1f)) {
                         LabeledField("Your name", name, "Shown on Home", { name = it.take(24) }, KeyboardType.Text, capitalize = true)
                         if (name.trim() != s.name) {

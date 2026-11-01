@@ -129,6 +129,16 @@ class RepositoryIntegrationTest {
         assertEquals(app.leftover.domain.MonthlyBudget.MAX, settings.settings.first().spendingBudget)
     }
 
+    @Test fun `the profile photo setting is kept, only for its own file names, and cleared with everything`() = runBlocking {
+        settings.setProfilePhoto("photo-123.jpg")
+        assertEquals("photo-123.jpg", SettingsRepository(ApplicationProvider.getApplicationContext()).settings.first().profilePhoto)
+        settings.setProfilePhoto("../databases/leftover.db")
+        assertNull(settings.settings.first().profilePhoto)
+        settings.setProfilePhoto("photo-456.jpg")
+        repo.deleteEverything()
+        assertNull(settings.settings.first().profilePhoto)
+    }
+
     @Test fun `theme choices and pin lockout survive a restart`() = runBlocking {
         settings.setAccent(Accent.PEACH)
         settings.setFont(AppFont.JAKARTA)

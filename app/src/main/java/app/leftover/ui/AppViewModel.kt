@@ -1,5 +1,9 @@
 package app.leftover.ui
 
+import kotlinx.coroutines.flow.first
+
+import kotlinx.coroutines.sync.withLock
+
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +18,7 @@ import app.leftover.data.NewSharedExpense
 import app.leftover.data.OnboardingAnswers
 import app.leftover.data.Snapshot
 import app.leftover.data.ReceiptStore
+import app.leftover.data.ProfilePhotoStore
 import app.leftover.domain.Pin
 import app.leftover.ui.add.EntryDraft
 import app.leftover.ui.add.ScreenshotIntake
@@ -147,6 +152,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         dismissToast()
         draft = result
         requestRoute(Routes.addDraft(result.income))
+    }
+
+    /** One photo change at a time, so two quick picks can't leave the setting pointing at a deleted file. */
+    private val photoLock = kotlinx.coroutines.sync.Mutex()
+
+    fun pickProfilePhoto(uri: android.net.Uri) = run {
+        photoLock.withLock {
+            val name = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProfilePhotoStore.importFrom(app, uri) }
+            if (name == null) showToast(Toast("Couldn't use that picture", "Try another photo")) else useProfilePhoto(name)
+        }
+    }
+
+    fun finishProfileCamera(name: String, taken: Boolean) = run {
+        photoLock.withLock {
+            val ok = taken && kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProfilePhotoStore.finishCamera(app, name) }
+            if (ok) useProfilePhoto(name)
+            else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProfilePhotoStore.keepOnly(app, settings.settings.first().profilePhoto) }
+        }
+    }
+
+    fun removeProfilePhoto() = run { photoLock.withLock { useProfilePhoto(null) } }
+
+    private suspend fun useProfilePhoto(name: String?) {
+        settings.setProfilePhoto(name)
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProfilePhotoStore.keepOnly(app, name) }
     }
 
     fun attachReceipt(tx: TransactionEntity, fileName: String?) = run { repository.updateTransaction(tx.copy(receiptFile = fileName)) }
@@ -433,6 +463,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         AutoBackup.cancel(app)
         repository.deleteEverything()
         ReceiptStore.deleteAll(app)
+        ProfilePhotoStore.deleteAll(app)
         then()
     }
 

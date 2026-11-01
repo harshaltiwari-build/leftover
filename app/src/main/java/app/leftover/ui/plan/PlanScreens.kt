@@ -49,6 +49,7 @@ import app.leftover.data.Snapshot
 import app.leftover.data.db.CategoryEntity
 import app.leftover.data.db.CategoryKind
 import app.leftover.domain.Money
+import app.leftover.ui.theme.FeatureIcons
 import androidx.compose.ui.text.input.KeyboardType
 import app.leftover.ui.components.LabeledField
 import app.leftover.domain.BudgetPace
@@ -82,7 +83,7 @@ import java.time.LocalDate
 fun PlanTabs(current: String, onSelect: (String) -> Unit) {
     val entries = listOf("Budgets" to Routes.PLAN, "Goals" to Routes.GOALS, "Bills" to Routes.BILLS, "Wishlist" to Routes.WISHLIST)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(entries) { (label, route) -> Chip(label, current == route, { if (route != current) onSelect(route) }) }
+        items(entries) { (label, route) -> Chip(label, current == route, { if (route != current) onSelect(route) }, icon = FeatureIcons.planTabs[label]) }
     }
 }
 
@@ -459,7 +460,7 @@ fun CategoriesScreen(snapshot: Snapshot, onBack: () -> Unit, onUpdate: (Category
                     LButton(
                         if (adding) "Add category" else "Save name", height = 48.dp, enabled = draftName.isNotBlank(),
                         onClick = {
-                            if (adding) onAdd(CategoryEntity(name = draftName.trim(), icon = "other", color = if (showIncome) "lime" else "grey", kind = kind, sortOrder = (if (showIncome) 30 else 10) + categories.size))
+                            if (adding) onAdd(CategoryEntity(name = draftName.trim(), icon = LeftoverIcons.guessKey(draftName), color = if (showIncome) "lime" else "grey", kind = kind, sortOrder = (if (showIncome) 30 else 10) + categories.size))
                             else selected?.let { onUpdate(it.copy(name = draftName.trim())) }
                             renaming = false; adding = false
                         },

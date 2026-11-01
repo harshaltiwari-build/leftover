@@ -83,7 +83,49 @@ object LeftoverIcons {
     val Phone by lazy { icon("phone", "M7 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z", "M11 18h2") }
     val Bolt by lazy { icon("bolt", "M13 2 4 14h7l-1 8 9-12h-7z") }
     val Wifi by lazy { icon("wifi", "M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0M12 19.5h.01") }
-    val Savings by lazy { icon("savings", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f)) }
+    /** A jar, so saving doesn't look like Plan's target. */
+    val Savings by lazy { icon("jar", "M8 3h8M9 3v3a5 5 0 0 0-4 4.9V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8.1A5 5 0 0 0 15 6V3", "M9.5 14h5") }
+
+    // Features
+    val Pie by lazy { icon("pie", circle(12f, 12f, 9f), "M12 3v9h9") }
+    val Tag by lazy { icon("tag", "M3 12.6V4a1 1 0 0 1 1-1h8.6a1 1 0 0 1 0.7 0.3l7.4 7.4a1 1 0 0 1 0 1.4l-8.6 8.6a1 1 0 0 1-1.4 0l-7.4-7.4a1 1 0 0 1-0.3-0.7z", circle(7.5f, 7.5f, 1.5f)) }
+    val Flag by lazy { icon("flag", "M5 21V4", "M5 4h12l-2.5 4.5L17 13H5") }
+    val Receipt by lazy { icon("receipt", "M6 3h12v18l-3-2-3 2-3-2-3 2z", "M9 8h6M9 12h6M9 16h3") }
+    val Grid by lazy { icon("grid", "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z") }
+    val Hash by lazy { icon("hash", "M5 9h15M4 15h15M10 3 8 21M16 3l-2 18") }
+    val Message by lazy { icon("message", "M21 15a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", "M8 9h8M8 13h5") }
+    val Shield by lazy { icon("shield", "M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z", "m9 12 2 2 4-4") }
+    val Palette by lazy { icon("palette", "M12 3a9 9 0 0 0 0 18c1.1 0 2-0.9 2-2 0-0.5-0.2-1-0.5-1.3-0.3-0.4-0.5-0.8-0.5-1.3 0-1.1 0.9-2 2-2h2.4a4.6 4.6 0 0 0 4.6-4.6C21 6 17 3 12 3z", circle(7.5f, 11f, 1f), circle(10.5f, 7f, 1f), circle(15.5f, 7.5f, 1f)) }
+    val Heart by lazy { icon("heart", "M12 20s-7-4.4-9-9a4.5 4.5 0 0 1 9-3 4.5 4.5 0 0 1 9 3c-2 4.6-9 9-9 9z") }
+    val Image by lazy { icon("image", "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z", "m3 16 5-5 4 4 3-3 6 6", circle(15.5f, 9f, 1.5f)) }
+
+    /**
+     * An icon key for a category someone just named, from words in the name: "Chai and coffee" gets the cup, "Uber / Ola"
+     * the car. Falls back to "other".
+     */
+    fun guessKey(name: String): String {
+        val n = name.lowercase()
+        return guesses.firstOrNull { (_, words) -> words.any { it in n } }?.first ?: "other"
+    }
+
+    private val guesses = listOf(
+        "coffee" to listOf("coffee", "chai", "tea", "cafe", "café", "starbucks"),
+        "groceries" to listOf("grocer", "kirana", "vegetable", "sabzi", "blinkit", "zepto", "bigbasket", "instamart"),
+        "food" to listOf("food", "eat", "dinner", "lunch", "breakfast", "restaurant", "swiggy", "zomato", "dining"),
+        "transport" to listOf("uber", "ola", "cab", "auto", "metro", "bus", "fuel", "petrol", "diesel", "transport", "travel", "rapido", "train", "flight"),
+        "wifi" to listOf("wifi", "wi-fi", "internet", "broadband"),
+        "phone" to listOf("phone", "mobile", "recharge"),
+        "bolt" to listOf("electric", "power", "light bill", "gas"),
+        "home" to listOf("rent", "home", "house", "maintenance"),
+        "gym" to listOf("gym", "fitness", "yoga", "sport"),
+        "music" to listOf("music", "spotify"),
+        "tv" to listOf("netflix", "prime", "hotstar", "ott", "tv"),
+        "fun" to listOf("movie", "fun", "subscription", "game", "party", "outing"),
+        "shopping" to listOf("shop", "amazon", "myntra", "flipkart", "clothes", "gift"),
+        "personal" to listOf("salon", "care", "beauty", "haircut", "medicine", "health", "pharmacy"),
+        "savings" to listOf("saving", "invest", "sip", "mutual"),
+        "snacks" to listOf("snack", "chips", "sweet"),
+    )
 
     /** Looks up an icon by the key stored on categories and bills. */
     fun forKey(key: String): ImageVector = when (key) {
@@ -111,6 +153,28 @@ object LeftoverIcons {
         "home" -> Home
         "calendar" -> Calendar
         "savings" -> Savings
+        "receipt" -> Receipt
         else -> Other
+    }
+}
+
+/** The icon for each feature, by the label people see. Kept in one place so every screen uses the same one. */
+object FeatureIcons {
+    val tabs by lazy { linkedMapOf("Home" to LeftoverIcons.Home, "Activity" to LeftoverIcons.List, "Plan" to LeftoverIcons.Pie, "Insights" to LeftoverIcons.Trend) }
+    val quickActions by lazy { linkedMapOf("Say it" to LeftoverIcons.Mic, "Afford?" to LeftoverIcons.Tag, "Split" to LeftoverIcons.People, "Goals" to LeftoverIcons.Flag) }
+    val planTabs by lazy { linkedMapOf("Budgets" to LeftoverIcons.Wallet, "Goals" to LeftoverIcons.Flag, "Bills" to LeftoverIcons.Receipt, "Wishlist" to LeftoverIcons.Heart) }
+    val rhythm by lazy {
+        linkedMapOf(
+            "Payday" to LeftoverIcons.Calendar, "Comes in" to LeftoverIcons.Income, "Bills and EMIs" to LeftoverIcons.Receipt,
+            "Spending budget" to LeftoverIcons.Wallet, "Saving" to LeftoverIcons.Savings,
+        )
+    }
+    val settings by lazy {
+        linkedMapOf(
+            "Accounts and cards" to LeftoverIcons.Bank, "Categories" to LeftoverIcons.Grid, "Tags and events" to LeftoverIcons.Hash,
+            "Money rhythm" to LeftoverIcons.Calendar, "Bills and plans" to LeftoverIcons.Receipt, "Automatic tracking" to LeftoverIcons.Message,
+            "Reminders" to LeftoverIcons.Bell, "Backup and restore" to LeftoverIcons.Shield, "Privacy and permissions" to LeftoverIcons.Lock,
+            "Appearance and language" to LeftoverIcons.Palette, "About Leftover" to LeftoverIcons.Info,
+        )
     }
 }

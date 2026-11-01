@@ -59,13 +59,34 @@ object ScreenshotIntake {
         )
     }
 
-    /** A temporary full-size copy, decoded once to make sure it really is an image. */
-    private fun copyForReading(context: Context, uri: Uri): File? = runCatching {
+    /** Shared images bigger than this aren't screenshots; they're refused before being copied. */
+    private const val MAX_BYTES = 30L * 1024 * 1024
+
+    /** A temporary full-size copy, decoded once to make sure it really is an image. Null for anything too big or not an image. */
+    internal fun copyForReading(context: Context, uri: Uri): File? {
         val out = File(context.cacheDir, "ocr-${System.nanoTime()}.img")
-        context.contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } } ?: return null
+        return runCatching { copyChecked(context, uri, out) }.getOrNull().also { if (it == null) out.delete() }
+    }
+
+    private fun copyChecked(context: Context, uri: Uri, out: File): File? {
+        val copied = context.contentResolver.openInputStream(uri)?.use { input ->
+            out.outputStream().use { output ->
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    total += n
+                    if (total > MAX_BYTES) return null
+                    output.write(buffer, 0, n)
+                }
+                total
+            }
+        } ?: return null
+        if (copied == 0L) return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(out.path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) { out.delete(); return null }
-        out
-    }.getOrNull()
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        return out
+    }
 }

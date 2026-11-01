@@ -34,6 +34,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.leftover.ui.theme.Leftover
+import app.leftover.ui.theme.FeatureIcons
+import app.leftover.ui.components.FeatureIcon
+import androidx.compose.ui.graphics.Brush
 import app.leftover.ui.theme.LeftoverIcons
 import app.leftover.ui.theme.Radius
 import app.leftover.ui.theme.Type
@@ -41,20 +44,24 @@ import app.leftover.ui.theme.Type
 data class Tab(val label: String, val icon: ImageVector, val route: String, val sections: Set<String>)
 
 val tabs = listOf(
-    Tab("Home", LeftoverIcons.Home, Routes.HOME, setOf(Routes.HOME)),
-    Tab("Activity", LeftoverIcons.List, Routes.ACTIVITY, setOf(Routes.ACTIVITY)),
-    Tab("Plan", LeftoverIcons.Target, Routes.PLAN, setOf(Routes.PLAN, Routes.GOALS, Routes.BILLS, Routes.WISHLIST, Routes.SPLIT)),
-    Tab("Insights", LeftoverIcons.Trend, Routes.INSIGHTS, setOf(Routes.INSIGHTS)),
+    Tab("Home", FeatureIcons.tabs.getValue("Home"), Routes.HOME, setOf(Routes.HOME)),
+    Tab("Activity", FeatureIcons.tabs.getValue("Activity"), Routes.ACTIVITY, setOf(Routes.ACTIVITY)),
+    Tab("Plan", FeatureIcons.tabs.getValue("Plan"), Routes.PLAN, setOf(Routes.PLAN, Routes.GOALS, Routes.BILLS, Routes.WISHLIST, Routes.SPLIT)),
+    Tab("Insights", FeatureIcons.tabs.getValue("Insights"), Routes.INSIGHTS, setOf(Routes.INSIGHTS)),
 )
 
 /**
- * Four labelled tabs and a raised Add button, on a floating card inside the thumb zone. The current tab is bold with
- * a dot above its label.
+ * Four tabs with icons and labels and a raised Add button, on a floating card inside the thumb zone. The current tab's
+ * icon sits on an accent pill. The ground colour fades in behind the card so lists don't show through underneath it.
  */
 @Composable
 fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit) {
     val c = Leftover.colors
-    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+    Box(
+        Modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(0f to c.ground.copy(alpha = 0f), 0.3f to c.ground, 1f to c.ground))
+            .navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 18.dp),
+    ) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 72.dp)
                 .let { if (c.isDark) it else it.shadow(14.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.14f), spotColor = c.ink.copy(alpha = 0.14f)) }
@@ -84,8 +91,11 @@ private fun TabItem(tab: Tab, selected: Boolean, onTab: (String) -> Unit) {
         Modifier.widthIn(min = 64.dp).heightIn(min = 56.dp).clip(Radius.md).clickable(role = Role.Tab) { onTab(tab.route) }.semantics { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(6.dp).clip(Radius.pill).background(if (selected) c.ink else Color.Transparent))
-        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier.size(width = 48.dp, height = 28.dp).clip(Radius.pill).background(if (selected) c.lime else Color.Transparent),
+            contentAlignment = Alignment.Center,
+        ) { FeatureIcon(tab.icon, if (selected) c.onLime else c.muted, 22.dp) }
+        Spacer(Modifier.height(2.dp))
         Text(tab.label, style = if (selected) Type.smallBold else Type.small, color = if (selected) c.ink else c.muted, maxLines = 1)
     }
 }

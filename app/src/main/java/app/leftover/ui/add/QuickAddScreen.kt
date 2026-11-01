@@ -211,7 +211,7 @@ fun QuickAddScreen(
             }
             if (needsCategory) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    categories.forEach { cat -> Chip(cat.name, categoryId == cat.id, { categoryId = cat.id }) }
+                    categories.forEach { cat -> Chip(cat.name, categoryId == cat.id, { categoryId = cat.id }, icon = LeftoverIcons.forKey(cat.icon)) }
                     Chip("New", false, { newCategory = if (newCategory == null) "" else null }, icon = LeftoverIcons.Plus, dashed = true)
                 }
                 newCategory?.let { name ->

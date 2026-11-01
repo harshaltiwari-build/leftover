@@ -72,6 +72,7 @@ import app.leftover.ui.components.IconTile
 import app.leftover.ui.components.ListRow
 import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.LeftoverIcons
+import app.leftover.ui.theme.FeatureIcons
 import app.leftover.ui.theme.Radius
 import app.leftover.ui.theme.Type
 import java.time.LocalTime
@@ -138,10 +139,10 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: 
     val name = snapshot.settings.name.ifBlank { "there" }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
-            Modifier.size(46.dp).border(2.dp, c.lime, Radius.pill).padding(3.dp).clip(Radius.pill).background(c.lavender)
+            Modifier.size(46.dp).border(2.dp, c.lime, Radius.pill).padding(3.dp).clip(Radius.pill)
                 .clickable(role = Role.Button, onClick = onOpenProfile).semantics { contentDescription = "Your profile" },
             contentAlignment = Alignment.Center,
-        ) { Text(name.take(1).uppercase(), style = Type.bodyExtra, color = c.lavenderInk) }
+        ) { app.leftover.ui.components.Avatar(name, snapshot.settings.profilePhoto, 40.dp, Type.bodyExtra) }
         Column(Modifier.weight(1f)) {
             Text("${UiFormat.greeting(LocalTime.now().hour)},", style = Type.caption, color = c.muted)
             Text(name, style = Type.h2, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -407,10 +408,10 @@ private fun Legend(textColor: Color) {
 @Composable
 private fun QuickActions(onVoice: () -> Unit, onAfford: () -> Unit, onSplit: () -> Unit, onGoals: () -> Unit) {
     val items = listOf(
-        Triple("Say it", LeftoverIcons.Mic, onVoice),
-        Triple("Afford?", LeftoverIcons.Target, onAfford),
-        Triple("Split", LeftoverIcons.People, onSplit),
-        Triple("Goals", LeftoverIcons.Savings, onGoals),
+        Triple("Say it", FeatureIcons.quickActions.getValue("Say it"), onVoice),
+        Triple("Afford?", FeatureIcons.quickActions.getValue("Afford?"), onAfford),
+        Triple("Split", FeatureIcons.quickActions.getValue("Split"), onSplit),
+        Triple("Goals", FeatureIcons.quickActions.getValue("Goals"), onGoals),
     )
     // At large text sizes the four tiles reflow to two rows of two instead of squeezing.
     val perRow = if (LocalDensity.current.fontScale >= 1.4f) 2 else 4
@@ -435,7 +436,7 @@ private fun ActionTile(label: String, icon: ImageVector, onClick: () -> Unit, hi
             .clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, null, tint = if (highlighted) c.onLime else c.ink, modifier = Modifier.size(22.dp))
+        app.leftover.ui.components.FeatureIcon(icon, if (highlighted) c.onLime else c.ink, 22.dp)
         Spacer(Modifier.height(8.dp))
         Text(label, style = Type.smallBold, color = if (highlighted) c.onLime else c.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }

@@ -215,7 +215,7 @@ fun AppNav(viewModel: AppViewModel) {
                             nav.popBackStack()
                         },
                         onAddTag = { viewModel.addTag(it, "lavender", null) },
-                        onAddCategory = { name, kind -> viewModel.addCategory(CategoryEntity(name = name, icon = "other", color = if (kind == CategoryKind.INCOME) "lime" else "grey", kind = kind)) },
+                        onAddCategory = { name, kind -> viewModel.addCategory(CategoryEntity(name = name, icon = app.leftover.ui.theme.LeftoverIcons.guessKey(name), color = if (kind == CategoryKind.INCOME) "lime" else "grey", kind = kind)) },
                         onSaveTemplate = viewModel::addTemplate,
                         onDeleteTemplate = viewModel::deleteTemplate,
                     )
@@ -419,6 +419,7 @@ fun AppNav(viewModel: AppViewModel) {
                             onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) }, onOpenRhythm = { nav.navigate(Routes.RHYTHM) },
                             onOpenBills = { nav.switchTab(Routes.BILLS) }, onOpenLimits = { nav.navigate(Routes.EDIT_LIMITS) }, onOpenGoals = { nav.switchTab(Routes.GOALS) },
                             onOpenBackup = { nav.navigate(Routes.BACKUP) },
+                            onPickPhoto = viewModel::pickProfilePhoto, onCameraPhoto = viewModel::finishProfileCamera, onRemovePhoto = viewModel::removeProfilePhoto,
                         ),
                     )
                 }

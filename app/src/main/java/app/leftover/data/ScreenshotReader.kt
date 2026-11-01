@@ -34,13 +34,25 @@ object ScreenshotReader {
         return dir.path
     }
 
+    /** Never decode more than this many pixels (about 32 MB), whatever size a shared image claims to be. */
+    const val MAX_DECODE_PIXELS = 8_000_000L
+
+    /**
+     * How much to shrink while decoding. Long scrolling screenshots get no more than about 3000 px on the long side, and
+     * nothing is ever decoded past [MAX_DECODE_PIXELS]: images come from any app that shares one, so their size can't be trusted.
+     */
+    fun sampleFor(width: Int, height: Int): Int {
+        var sample = 1
+        while (maxOf(width, height) / (sample * 2) >= 3000) sample *= 2
+        while ((width / sample).toLong() * (height / sample) > MAX_DECODE_PIXELS) sample *= 2
+        return sample
+    }
+
     fun read(context: Context, file: File): ScreenshotText? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
-        var sample = 1
-        // Long scrolling screenshots can be huge; there's no point decoding more than about 3000 px on the long side.
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 3000) sample *= 2
-        val source = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val source = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sampleFor(bounds.outWidth, bounds.outHeight) }) ?: return null
         val prepared = prepare(source)
         if (prepared !== source) source.recycle()
         val api = TessBaseAPI()

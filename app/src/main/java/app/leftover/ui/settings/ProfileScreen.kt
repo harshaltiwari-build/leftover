@@ -41,6 +41,14 @@ import app.leftover.ui.components.Card
 import app.leftover.ui.components.Divider
 import app.leftover.ui.components.IconTile
 import app.leftover.ui.components.ListRow
+import app.leftover.ui.components.Avatar
+import app.leftover.ui.components.Chip
+import app.leftover.ui.components.FeatureIcon
+import app.leftover.ui.components.IconBadge
+import app.leftover.ui.theme.FeatureIcons
+import app.leftover.data.ProfilePhotoStore
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import app.leftover.ui.theme.CategoryPalette
 import app.leftover.ui.theme.Leftover
 import app.leftover.ui.theme.LeftoverIcons
@@ -60,6 +68,11 @@ data class ProfileActions(
     val onOpenLimits: () -> Unit,
     val onOpenGoals: () -> Unit,
     val onOpenBackup: () -> Unit,
+    /** A picture picked from the gallery. */
+    val onPickPhoto: (android.net.Uri) -> Unit = {},
+    /** The camera finished writing into this file name; false when it was cancelled. */
+    val onCameraPhoto: (String, Boolean) -> Unit = { _, _ -> },
+    val onRemovePhoto: () -> Unit = {},
 )
 
 /** Numbers about you and your money on this phone. There is no account: this is all worked out from your own entries. */
@@ -109,7 +122,7 @@ fun ProfileScreen(snapshot: Snapshot, actions: ProfileActions) {
     val name = s.name.ifBlank { "You" }
     val backedUp = if (s.lastBackupAt == 0L) null else Duration.between(Instant.ofEpochMilli(s.lastBackupAt), Instant.now()).toDays()
     val bills = snapshot.bills.filter { !it.archived }.sumOf { it.amount } + snapshot.emis.filter { !it.archived && it.remainingMonths > 0 }.sumOf { it.monthlyAmount }
-    val budget = snapshot.categories.sumOf { it.budgetLimit ?: 0L }
+    val budget = s.spendingBudget.takeIf { it > 0 } ?: snapshot.categories.sumOf { it.budgetLimit ?: 0L }
     val saving = snapshot.goals.filter { !it.archived }.sumOf { it.perCycle }
 
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
@@ -123,9 +136,7 @@ fun ProfileScreen(snapshot: Snapshot, actions: ProfileActions) {
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(96.dp).border(3.dp, c.lime, Radius.pill).padding(6.dp).clip(Radius.pill).background(c.lavender), contentAlignment = Alignment.Center) {
-                    Text(name.take(1).uppercase(), style = Type.display36, color = c.lavenderInk)
-                }
+                PhotoEditor(name, s.profilePhoto, actions)
                 Text(name, style = Type.h1, color = c.ink)
                 Text("${s.incomeType} · paid on the ${ordinal(s.paydayDay)} · ₹ INR", style = Type.caption, color = c.muted, textAlign = TextAlign.Center)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -157,7 +168,7 @@ fun ProfileScreen(snapshot: Snapshot, actions: ProfileActions) {
                     Divider()
                     RhythmRow("Bills and EMIs", Money.display(bills, hidden) + " / mo", "butter", actions.onOpenBills)
                     Divider()
-                    RhythmRow("Spending budget", if (budget > 0) Money.display(budget, hidden) + " / mo" else "Set limits", "peach", actions.onOpenLimits)
+                    RhythmRow("Spending budget", if (budget > 0) Money.display(budget, hidden) + " / mo" else "Set a budget", "peach", actions.onOpenLimits)
                     Divider()
                     RhythmRow("Saving", if (saving > 0) Money.display(saving, hidden) + " / payday" else "Add a goal", "lavender", actions.onOpenGoals)
                 }
@@ -230,12 +241,64 @@ private fun Stat(label: String, value: String, note: String, bg: Color, ink: Col
     }
 }
 
+/**
+ * The photo at the top of Profile. Tapping it, or "Add photo" / "Change photo", shows the choices: the gallery (no
+ * permission needed), the camera, or removing it.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PhotoEditor(name: String, photo: String?, actions: ProfileActions) {
+    val c = Leftover.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var pendingCamera by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val gallery = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) { actions.onPickPhoto(uri); open = false }
+    }
+    val camera = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.TakePicture()) { ok ->
+        pendingCamera?.let { actions.onCameraPhoto(it, ok) }
+        pendingCamera = null
+        if (ok) open = false
+    }
+    Box(
+        Modifier.size(96.dp).border(3.dp, c.lime, Radius.pill).padding(6.dp).clip(Radius.pill)
+            .clickable(role = Role.Button, onClickLabel = if (photo == null) "Add photo" else "Change photo") { open = !open },
+        contentAlignment = Alignment.Center,
+    ) { Avatar(name, photo, 84.dp, Type.display36) }
+    Row(
+        Modifier.clip(Radius.pill).clickable(role = Role.Button) { open = !open }.padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        FeatureIcon(LeftoverIcons.Camera, c.ink, 16.dp)
+        Text(if (photo == null) "Add photo" else "Change photo", style = Type.captionBold, color = c.ink)
+    }
+    if (open) {
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Chip("Choose from gallery", false, {
+                gallery.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }, icon = LeftoverIcons.Image, role = Role.Button)
+            Chip("Take a photo", false, {
+                val (file, uri) = ProfilePhotoStore.cameraTarget(context)
+                pendingCamera = file
+                runCatching { camera.launch(uri) }.onFailure { pendingCamera = null; actions.onCameraPhoto(file, false) }
+            }, icon = LeftoverIcons.Camera, role = Role.Button)
+            if (photo != null) Chip("Remove photo", false, { actions.onRemovePhoto(); open = false }, icon = LeftoverIcons.Trash, role = Role.Button)
+        }
+        Text("Your photo stays on this phone. It isn't in backups.", style = Type.small, color = c.muted, textAlign = TextAlign.Center)
+    }
+}
+
 @Composable
 private fun RhythmRow(name: String, value: String, color: String, onClick: () -> Unit) {
     val c = Leftover.colors
     ListRow(
         onClick = onClick,
-        leading = { Box(Modifier.size(38.dp).clip(Radius.sm).background(CategoryPalette.of(color, c.isDark).tile)) },
+        leading = {
+            val palette = CategoryPalette.of(color, c.isDark)
+            FeatureIcons.rhythm[name]?.let { IconBadge(it, palette.tile, c.ink) } ?: Box(Modifier.size(38.dp).clip(Radius.sm).background(palette.tile))
+        },
         title = name,
         trailing = {
             Text(value, style = Type.captionBold, color = c.ink)

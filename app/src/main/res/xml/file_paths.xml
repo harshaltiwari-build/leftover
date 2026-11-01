@@ -3,4 +3,6 @@
     <cache-path name="exports" path="." />
     <!-- Receipt photos: the camera app writes here through a content URI, and nothing else can read them. -->
     <files-path name="receipts" path="receipts/" />
+    <!-- Profile photo taken with the camera: written the same way, into its own folder. -->
+    <files-path name="profile" path="profile/" />
 </paths>

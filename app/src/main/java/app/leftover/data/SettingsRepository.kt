@@ -86,6 +86,8 @@ data class Settings(
     /** Day-to-day spending you mean to keep to each cycle, in paise. 0 means "add up my category limits". */
     val spendingBudget: Long = 0,
     val font: AppFont = AppFont.MANROPE,
+    /** File name of your profile photo in the app's private folder, or null for your initial. */
+    val profilePhoto: String? = null,
 ) {
     val hasPin: Boolean get() = pinHash != null && pinSalt != null
     val backupProtected: Boolean get() = backupSalt != null && backupWrappedKey != null
@@ -140,6 +142,7 @@ class SettingsRepository(private val context: Context) {
         val accent = stringPreferencesKey("accent")
         val spendingBudget = longPreferencesKey("spending_budget")
         val font = stringPreferencesKey("font")
+        val profilePhoto = stringPreferencesKey("profile_photo")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
@@ -186,6 +189,7 @@ class SettingsRepository(private val context: Context) {
         spendingBudget = (this[Keys.spendingBudget] ?: 0L).coerceAtLeast(0),
         accent = this[Keys.accent]?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.LIME,
         font = this[Keys.font]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.MANROPE,
+        profilePhoto = this[Keys.profilePhoto]?.takeIf(ProfilePhotoStore::isSafeName),
     )
 
     suspend fun completeOnboarding(paydayDay: Int, incomeType: String, usualIncome: Long) {
@@ -215,6 +219,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun clear() = context.dataStore.edit { it.clear() }
 
+    /** Only names the photo store made are kept; anything else clears the photo. */
+    suspend fun setProfilePhoto(name: String?) = context.dataStore.edit {
+        if (name != null && ProfilePhotoStore.isSafeName(name)) it[Keys.profilePhoto] = name else it.remove(Keys.profilePhoto)
+    }
     suspend fun setHideBalances(value: Boolean) = context.dataStore.edit { it[Keys.hideBalances] = value }
     suspend fun setThemeMode(value: ThemeMode) = context.dataStore.edit { it[Keys.themeMode] = value.name }
     suspend fun setAppLock(value: Boolean) = context.dataStore.edit { it[Keys.appLock] = value }
