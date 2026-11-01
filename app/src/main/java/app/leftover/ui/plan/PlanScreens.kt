@@ -49,6 +49,10 @@ import app.leftover.data.Snapshot
 import app.leftover.data.db.CategoryEntity
 import app.leftover.data.db.CategoryKind
 import app.leftover.domain.Money
+import androidx.compose.ui.text.input.KeyboardType
+import app.leftover.ui.components.LabeledField
+import app.leftover.domain.BudgetPace
+import app.leftover.domain.MonthlyBudget
 import app.leftover.ui.components.ListRow
 import app.leftover.domain.PayCycle
 import app.leftover.domain.rupees
@@ -102,6 +106,72 @@ private fun PayCycle.back(count: Int): PayCycle {
     return cycle
 }
 
+/**
+ * One spending number for the cycle. With none set (and no category limits) it asks for one, offering last cycle's
+ * spending as a start; once set it shows what's left, the pace, and a way to change it.
+ */
+@Composable
+private fun MonthlyBudgetBlock(snapshot: Snapshot, hidden: Boolean, onSetBudget: (Long) -> Unit, onEditLimits: () -> Unit) {
+    val c = Leftover.colors
+    val ledger = snapshot.ledger
+    val budget = MonthlyBudget.of(ledger, snapshot.settings.spendingBudget)
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var input by rememberSaveable { mutableStateOf("") }
+    if (budget == null || editing) {
+        val suggestion = remember(ledger) { MonthlyBudget.suggestion(ledger) }
+        val typed = MonthlyBudget.parseInput(input) ?: 0L
+        val tooBig = typed == 0L && input.trimStart('0').isNotEmpty()
+        Text(if (budget == null) "How much do you want to spend this cycle?" else "Change your spending budget", style = Type.h2, color = c.ink)
+        Text("Day-to-day spending only: food, travel, shopping. Bills and rent are already taken care of.", style = Type.caption, color = c.muted, modifier = Modifier.padding(top = 4.dp))
+        Spacer(Modifier.height(12.dp))
+        LabeledField(
+            "Spending budget", input, suggestion?.takeIf { !hidden }?.let { (it / 100).toString() } ?: "12000", { input = it.filter(Char::isDigit).take(9) }, KeyboardType.Number,
+            prefix = "₹", error = if (tooBig) "Up to ${Money.format(MonthlyBudget.MAX)} a cycle" else null,
+        )
+        if (suggestion != null && !hidden) {
+            Spacer(Modifier.height(8.dp))
+            Chip("Last cycle: ${Money.format(suggestion)}", false, { input = (suggestion / 100).toString() }, role = Role.Button)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (editing) LButton("Cancel", { editing = false; input = "" }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 48.dp)
+            LButton(if (typed > 0) "Set ${Money.format(typed)}" else "Enter an amount", { onSetBudget(typed); editing = false; input = "" }, modifier = Modifier.weight(1f), enabled = typed > 0, height = 48.dp)
+        }
+        if (budget == null) {
+            Text(
+                "Or set limits per category", style = Type.captionBold, color = c.muted,
+                modifier = Modifier.padding(top = 6.dp).clip(Radius.sm).clickable(role = Role.Button, onClick = onEditLimits).padding(vertical = 10.dp),
+            )
+        }
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Amount(budget.left, hidden, Type.display36, color = if (budget.left < 0) c.emberText else c.ink)
+        Text("left of ${Money.display(budget.budget, hidden)}", style = Type.body, color = c.muted, modifier = Modifier.padding(bottom = 6.dp))
+    }
+    Spacer(Modifier.height(14.dp))
+    Box(Modifier.fillMaxWidth()) {
+        ProgressBar(budget.used, height = 12.dp, color = when (budget.status) { BudgetPace.OVER -> c.ember; else -> c.ink })
+        Box(Modifier.fillMaxWidth(budget.pace).height(12.dp), contentAlignment = Alignment.CenterEnd) {
+            Box(Modifier.width(2.dp).height(20.dp).background(c.muted))
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    Text("${(budget.spent * 100 / budget.budget).coerceAtLeast(0)}% used · line = an even pace (${(budget.pace * 100).toInt()}%)", style = Type.small, color = c.muted)
+    Spacer(Modifier.height(12.dp))
+    val (text, bg, fg) = when {
+        budget.left < 0 -> Triple(if (hidden) "Over budget this cycle." else "${Money.format(-budget.left)} over budget this cycle.", c.emberBg, c.emberText)
+        budget.status == BudgetPace.ON_PACE -> Triple(if (hidden) "On pace." else "On pace. About ${Money.format(budget.perDayLeft)} a day is free until payday.", c.lime, c.onLime)
+        else -> Triple(if (hidden) "Ahead of pace: worth easing off." else "At this pace you'd finish about ${Money.format(budget.projectedOver)} over. ${Money.format(budget.perDayLeft)} a day holds it.", c.emberBg, c.emberText)
+    }
+    Text(text, style = Type.captionBold, color = fg, modifier = Modifier.fillMaxWidth().clip(Radius.md).background(bg).padding(horizontal = 12.dp, vertical = 10.dp))
+    Text(
+        if (budget.fromSetting) "Change ${Money.display(budget.budget, hidden)}" else "Set one spending number instead of adding up limits",
+        style = Type.captionBold, color = c.ink,
+        modifier = Modifier.padding(top = 6.dp).clip(Radius.sm).clickable(role = Role.Button) { editing = true }.padding(vertical = 10.dp),
+    )
+}
+
 /** How much of a month's income is already promised: bills, EMIs and goal money, and what that leaves to spend. */
 @Composable
 private fun SpokenFor(snapshot: Snapshot, hidden: Boolean, onOpen: () -> Unit) {
@@ -140,7 +210,7 @@ private fun SpokenFor(snapshot: Snapshot, hidden: Boolean, onOpen: () -> Unit) {
 }
 
 @Composable
-fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimits: () -> Unit, onCategories: () -> Unit, onOpenTags: () -> Unit, onOpenCheckIn: () -> Unit, onOpenBreakdown: () -> Unit, onToggleRollover: (CategoryEntity) -> Unit, onOpenSplit: () -> Unit = {}) {
+fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimits: () -> Unit, onCategories: () -> Unit, onOpenTags: () -> Unit, onOpenCheckIn: () -> Unit, onOpenBreakdown: () -> Unit, onToggleRollover: (CategoryEntity) -> Unit, onOpenSplit: () -> Unit = {}, onSetBudget: (Long) -> Unit = {}) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val hidden = snapshot.settings.hideBalances
@@ -174,37 +244,10 @@ fun BudgetsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onEditLimit
                 Text("$daysLeft ${if (daysLeft == 1) "day" else "days"} left", style = Type.smallBold, color = c.muted)
             }
             Spacer(Modifier.height(14.dp))
-            if (totalLimit <= 0) {
-                Text("No budgets yet", style = Type.h2, color = c.ink)
-                Text("Set a limit for the categories you want to keep an eye on.", style = Type.caption, color = c.muted)
-                Spacer(Modifier.height(12.dp))
-                LButton("Set budget limits", onEditLimits, height = 48.dp)
-            } else {
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Amount((totalLimit - totalSpent), hidden, Type.display36, color = c.ink)
-                    Text("budget left of ${Money.display(totalLimit, hidden)}", style = Type.body, color = c.muted, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                Spacer(Modifier.height(14.dp))
-                Box(Modifier.fillMaxWidth()) {
-                    ProgressBar(usedFraction, height = 12.dp, color = if (usedFraction > 1f) c.ember else c.ink)
-                    Box(Modifier.padding(start = 0.dp).fillMaxWidth(pace.coerceIn(0f, 1f)).height(12.dp), contentAlignment = Alignment.CenterEnd) {
-                        Box(Modifier.width(2.dp).height(20.dp).background(c.muted))
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text("${(usedFraction * 100).toInt()}% used · marker = where you'd be at an even pace (${(pace * 100).toInt()}%)", style = Type.small, color = c.muted)
-                Spacer(Modifier.height(12.dp))
-                val projected = if (pace > 0.05f) (totalSpent / pace).toLong() else totalSpent
-                val under = totalLimit - projected
-                Text(
-                    if (under >= 0) "You're on track to finish about ${Money.display(under, hidden)} under." else "At this pace you'll finish about ${Money.display(-under, hidden)} over — worth easing off.",
-                    style = Type.captionBold, color = if (under >= 0) c.onLime else c.emberText,
-                    modifier = Modifier.fillMaxWidth().clip(Radius.md).background(if (under >= 0) c.lime else c.emberBg).padding(horizontal = 12.dp, vertical = 10.dp),
-                )
-            }
+            MonthlyBudgetBlock(snapshot, hidden, onSetBudget, onEditLimits)
             Spacer(Modifier.height(10.dp))
             Text(
-                "Budget left tracks your category limits. Left to spend on Home is the money you actually have after bills, card dues and goals.",
+                "Left until payday on Home is the money you actually have after bills, card dues and goals.",
                 style = Type.small, color = c.muted,
             )
             Row(

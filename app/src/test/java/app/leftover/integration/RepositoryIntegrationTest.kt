@@ -16,7 +16,10 @@ import app.leftover.data.db.TxType
 import app.leftover.domain.SafeToday
 import app.leftover.domain.TagTotals
 import app.leftover.domain.rupees
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -101,6 +104,29 @@ class RepositoryIntegrationTest {
         assertTrue(s.accounts.isEmpty())
         assertTrue(!s.settings.onboarded)
         assertTrue(s.categories.isNotEmpty())
+    }
+
+    @Test fun `a monthly spending budget is saved and drives the budget numbers`() = runBlocking {
+        val cat = repo.snapshot.first().categories.first { it.name == "Eating out" }
+        repo.addTransaction(TransactionEntity(type = TxType.EXPENSE, amount = rupees(1_500), accountId = account(), categoryId = cat.id, occurredAt = now()))
+        settings.setSpendingBudget(rupees(12_000))
+        val s = repo.snapshot.first()
+        assertEquals(rupees(12_000), s.settings.spendingBudget)
+        val b = app.leftover.domain.MonthlyBudget.of(s.ledger, s.settings.spendingBudget)!!
+        assertEquals(rupees(10_500), b.left)
+        settings.setSpendingBudget(0)
+        assertNull(app.leftover.domain.MonthlyBudget.of(repo.snapshot.first().ledger, 0))
+    }
+
+    // Attack: many writers at once (double taps, a widget, a restore) must leave one of the values written, never junk.
+    @Test fun `concurrent budget writes settle on a value that was written`() = runBlocking {
+        val values = (1..50).map { rupees(it * 1_000L) }
+        coroutineScope { values.forEach { v -> launch(Dispatchers.Default) { settings.setSpendingBudget(v) } } }
+        assertTrue(settings.settings.first().spendingBudget in values)
+        settings.setSpendingBudget(-5)
+        assertEquals(0L, settings.settings.first().spendingBudget)
+        settings.setSpendingBudget(Long.MAX_VALUE)
+        assertEquals(app.leftover.domain.MonthlyBudget.MAX, settings.settings.first().spendingBudget)
     }
 
     @Test fun `theme choices and pin lockout survive a restart`() = runBlocking {

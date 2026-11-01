@@ -394,7 +394,8 @@ fun LabeledField(
                     value, onChange, textStyle = Type.bodyStrong.copy(color = c.ink), cursorBrush = SolidColor(c.ink), singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard, capitalization = if (capitalize) KeyboardCapitalization.Words else KeyboardCapitalization.None),
                     visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-                    modifier = Modifier.fillMaxWidth(),
+                    // Screen readers announce the field by its label, not just "edit box".
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
                 )
             }
         }

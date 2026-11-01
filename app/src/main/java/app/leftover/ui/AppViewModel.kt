@@ -452,6 +452,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setPaydayDay(value: Int) = run { settings.setPaydayDay(value) }
     fun setName(value: String) = run { settings.setName(value) }
     fun setPureBlack(value: Boolean) = run { settings.setPureBlack(value) }
+    fun setSpendingBudget(paise: Long) = run { settings.setSpendingBudget(paise) }
     fun setAccent(value: app.leftover.data.Accent) = run { settings.setAccent(value) }
     fun setFont(value: app.leftover.data.AppFont) = run { settings.setFont(value) }
     fun setDailyLog(value: Boolean) = run { settings.setDailyLog(value) }

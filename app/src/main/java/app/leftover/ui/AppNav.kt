@@ -263,6 +263,7 @@ fun AppNav(viewModel: AppViewModel) {
                         snapshot = data, onSelectTab = { nav.switchTab(it) }, onEditLimits = { nav.navigate(Routes.EDIT_LIMITS) }, onCategories = { nav.navigate(Routes.CATEGORIES) }, onOpenTags = { nav.navigate(Routes.TAGS) }, onOpenCheckIn = { nav.navigate(Routes.CHECKIN) },
                         onOpenBreakdown = { nav.navigate(Routes.LEFT) }, onToggleRollover = { viewModel.updateCategory(it.copy(rollover = !it.rollover)) },
                         onOpenSplit = { nav.navigate(Routes.SPLIT) },
+                        onSetBudget = viewModel::setSpendingBudget,
                     )
                 }
                 composable(Routes.EDIT_LIMITS) { EditLimitsScreen(data, onClose = { nav.popBackStack() }, onSave = viewModel::updateCategories) }

@@ -78,7 +78,8 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
     Column(Modifier.fillMaxSize().background(c.ground).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Insights", style = Type.h1, color = c.ink)
-            Text(
+            // A recap of a cycle with nothing in it would be five empty cards.
+            if (snapshot.ledger.totalSpent(snapshot.cycle.previous()) > 0) Text(
                 "${snapshot.cycle.previous().start.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)} recap", style = Type.captionBold, color = c.heroNumber,
                 modifier = Modifier.clip(Radius.pill).background(c.hero).clickable(role = Role.Button, onClick = onOpenRecap).padding(horizontal = 14.dp, vertical = 12.dp),
             )
@@ -96,7 +97,9 @@ fun InsightsScreen(snapshot: Snapshot, onBack: () -> Unit, onOpenRecap: () -> Un
                     Text("Your usual full cycle is about ${Money.format(insights.averageSpent)}.", style = Type.caption, color = c.muted)
                 }
                 Spacer(Modifier.height(14.dp))
-                TrendChart(insights, hidden)
+                // A line of zeros says nothing; the chart appears once two cycles have spending in them.
+                if (insights.trend.count { it.spent > 0 } >= 2) TrendChart(insights, hidden)
+                else Text("Your trend appears here after your second cycle.", style = Type.caption, color = c.muted)
             }
 
             val (fees, feeTotal) = FeeDetector.feesIn(snapshot.transactions, snapshot.cycle)

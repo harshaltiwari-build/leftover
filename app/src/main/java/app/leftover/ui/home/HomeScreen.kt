@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import app.leftover.domain.PaceWarning
 import app.leftover.domain.SafeToday
+import app.leftover.domain.SafeTodayCopy
 import app.leftover.ui.theme.CategoryPalette
 import app.leftover.data.db.TransactionEntity
 import app.leftover.data.db.TxType
@@ -194,7 +195,7 @@ private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, sho
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.onHeroMuted.copy(alpha = 0.25f)))
         Row(Modifier.fillMaxWidth()) {
-            HeroStat("Came in", ledger.income(), hidden, plus = true, modifier = Modifier.weight(1f))
+            HeroStat("Came in", ledger.income(), hidden, plus = true, modifier = Modifier.weight(1f), emptyText = "Not logged yet")
             HeroStat("Spent", spentNow, hidden, minus = true, modifier = Modifier.weight(1f))
             HeroStat("For goals", left.goalsTotal, hidden, modifier = Modifier.weight(1f))
         }
@@ -217,10 +218,12 @@ private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, sho
 }
 
 @Composable
-private fun HeroStat(label: String, amount: Long, hidden: Boolean, modifier: Modifier = Modifier, plus: Boolean = false, minus: Boolean = false) {
+private fun HeroStat(label: String, amount: Long, hidden: Boolean, modifier: Modifier = Modifier, plus: Boolean = false, minus: Boolean = false, emptyText: String? = null) {
     val c = Leftover.colors
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = Type.small, color = c.onHeroMuted)
+        // Income that hasn't been logged isn't "+₹0": say so.
+        if (amount == 0L && emptyText != null) { Text(emptyText, style = Type.captionBold, color = c.onHeroMuted, maxLines = 1, modifier = Modifier.padding(top = 2.dp)); return@Column }
         Text(
             if (hidden) Money.HIDDEN else (if (plus) "+" else if (minus) "−" else "") + Money.format(amount),
             style = Type.bodyExtra, color = if (plus) c.heroNumber else c.onHero, maxLines = 1,
@@ -232,34 +235,26 @@ private fun HeroStat(label: String, amount: Long, hidden: Boolean, modifier: Mod
 @Composable
 private fun SafeTodayCard(safe: SafeToday, hidden: Boolean, onOpenAfford: () -> Unit) {
     val c = Leftover.colors
-    val ringColor = if (safe.over) c.ember else c.limeDeep
+    val ringColor = if (safe.over || safe.leftNow <= 0) c.ember else c.limeDeep
     val track = c.track
-    val description = if (hidden) "Safe to spend today, hidden" else if (safe.over) "${Money.format(-safe.leftToday)} over today's ${Money.format(safe.target)}" else "${Money.format(safe.leftToday)} of ${Money.format(safe.target)} safe to spend today"
+    val copy = SafeTodayCopy.of(safe, hidden)
+    val description = "${copy.title}. ${copy.amount} ${copy.of}. ${copy.line}"
     Card(shape = Radius.lg, padding = PaddingValues(16.dp), modifier = Modifier.clickable(role = Role.Button, onClickLabel = "Can I afford something?", onClick = onOpenAfford)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = description }) {
             Canvas(Modifier.size(56.dp)) {
                 val stroke = 7.dp.toPx()
                 val inset = stroke / 2
                 drawArc(track, 0f, 360f, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
-                val remaining = if (safe.over) 1f else 1f - safe.fraction
+                val remaining = if (safe.over || safe.leftNow <= 0) 1f else 1f - safe.fraction
                 if (remaining > 0f) drawArc(ringColor, -90f, 360f * remaining, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke, cap = StrokeCap.Round))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(if (safe.over) "Over today's target" else "Safe to spend today", style = Type.captionBold, color = c.muted)
+                Text(copy.title, style = Type.captionBold, color = c.muted)
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(Money.display(if (safe.over) -safe.leftToday else safe.leftToday, hidden), style = Type.h2, color = if (safe.over) c.emberText else c.ink)
-                    if (!hidden) Text("  of ${Money.format(safe.target)}", style = Type.caption, color = c.muted, modifier = Modifier.padding(bottom = 2.dp))
+                    Text(copy.amount, style = Type.h2, color = if (copy.warning) c.emberText else c.ink)
+                    if (copy.of.isNotEmpty()) Text("  ${copy.of}", style = Type.caption, color = c.muted, modifier = Modifier.padding(bottom = 2.dp))
                 }
-                val tomorrow = safe.tomorrow
-                Text(
-                    when {
-                        tomorrow == null -> "Payday tomorrow: a fresh cycle starts"
-                        hidden -> if (safe.over) "Tomorrow's amount is a little lower" else "Spend less today and tomorrow grows"
-                        safe.over -> "Spread over the ${safe.days - 1} days left, tomorrow is ${Money.format(tomorrow)}"
-                        else -> "Spend nothing more and tomorrow is ${Money.format(tomorrow)}"
-                    },
-                    style = Type.small, color = c.muted,
-                )
+                Text(copy.line, style = Type.small, color = c.muted)
             }
             Icon(LeftoverIcons.Chevron, null, tint = c.subtle, modifier = Modifier.size(18.dp))
         }

@@ -83,6 +83,8 @@ data class Settings(
     val pinFailures: Int = 0,
     val pinLockedUntil: Long = 0,
     val accent: Accent = Accent.LIME,
+    /** Day-to-day spending you mean to keep to each cycle, in paise. 0 means "add up my category limits". */
+    val spendingBudget: Long = 0,
     val font: AppFont = AppFont.MANROPE,
 ) {
     val hasPin: Boolean get() = pinHash != null && pinSalt != null
@@ -90,6 +92,11 @@ data class Settings(
 }
 
 class SettingsRepository(private val context: Context) {
+    companion object {
+        /** ₹1 crore: anything higher is a typo, not a budget. */
+        const val MAX_BUDGET = app.leftover.domain.MonthlyBudget.MAX
+    }
+
     private object Keys {
         val onboarded = booleanPreferencesKey("onboarded")
         val name = stringPreferencesKey("name")
@@ -131,6 +138,7 @@ class SettingsRepository(private val context: Context) {
         val pinFailures = intPreferencesKey("pin_failures")
         val pinLockedUntil = longPreferencesKey("pin_locked_until")
         val accent = stringPreferencesKey("accent")
+        val spendingBudget = longPreferencesKey("spending_budget")
         val font = stringPreferencesKey("font")
     }
 
@@ -175,6 +183,7 @@ class SettingsRepository(private val context: Context) {
         pinSalt = this[Keys.pinSalt],
         pinFailures = this[Keys.pinFailures] ?: 0,
         pinLockedUntil = this[Keys.pinLockedUntil] ?: 0L,
+        spendingBudget = (this[Keys.spendingBudget] ?: 0L).coerceAtLeast(0),
         accent = this[Keys.accent]?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.LIME,
         font = this[Keys.font]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.MANROPE,
     )
@@ -247,6 +256,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSmsTracking(value: Boolean) = context.dataStore.edit { it[Keys.smsTracking] = value }
     suspend fun setPaydayDay(value: Int) = context.dataStore.edit { it[Keys.paydayDay] = value }
     suspend fun setName(value: String) = context.dataStore.edit { it[Keys.name] = value }
+    suspend fun setSpendingBudget(paise: Long) = context.dataStore.edit { it[Keys.spendingBudget] = paise.coerceIn(0, MAX_BUDGET) }
     suspend fun setAccent(value: Accent) = context.dataStore.edit { it[Keys.accent] = value.name }
     suspend fun setFont(value: AppFont) = context.dataStore.edit { it[Keys.font] = value.name }
     suspend fun setPureBlack(value: Boolean) = context.dataStore.edit { it[Keys.pureBlack] = value }

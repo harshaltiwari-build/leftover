@@ -175,11 +175,13 @@ fun QuickAddScreen(
             Spacer(Modifier.height(22.dp))
             AmountDisplay(digits, sign = if (kind == "Income") "+" else if (kind == "Expense" && digits.isNotEmpty()) "−" else "", signColor = if (kind == "Income") c.positive else c.muted)
             Spacer(Modifier.height(8.dp))
-            val over = after < 0 && kind == "Expense"
+            val hidden = snapshot.settings.hideBalances
+            val over = kind == "Expense" && if (daysAgo == 0) app.leftover.domain.SafeTodayCopy.goesOver(safe, amount) else after < 0
             Text(
                 text = when {
                     kind == "Transfer" -> "Transfers don't change what you can spend"
-                    kind == "Expense" && daysAgo == 0 -> "Safe today ${Money.format(safe.leftToday.coerceAtLeast(0))} → ${Money.format(safe.leftToday - amount)}" + if (safe.leftToday - amount < 0) " (over)" else ""
+                    kind == "Expense" && daysAgo == 0 -> app.leftover.domain.SafeTodayCopy.impact(safe, amount, hidden)
+                    hidden -> "Left to spend updates when you save"
                     else -> "Left to spend: ${Money.format(before)} → ${Money.format(after)}"
                 },
                 style = Type.captionBold, color = if (over) c.emberText else c.ink,
