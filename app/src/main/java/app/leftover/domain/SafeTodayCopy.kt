@@ -10,10 +10,7 @@ data class SafeTodayCopy(val title: String, val amount: String, val of: String, 
             fun m(p: Paise) = Money.display(p, hidden)
             val tomorrow = safe.tomorrow
             return when {
-                safe.leftNow < 0 -> SafeTodayCopy(
-                    "Over until payday", m(-safe.leftNow), "",
-                    "This comes out of bill or goal money. Pausing a goal or adding money that came in covers it.", true,
-                )
+                safe.leftNow < 0 -> SafeTodayCopy("Safe to spend today", m(0), "", "Essentials only until payday", true)
                 safe.leftNow == 0L -> SafeTodayCopy(
                     "Nothing left to spend", m(0), "",
                     "Essentials only until payday. Add money that came in to update this.", true,
@@ -45,6 +42,14 @@ data class SafeTodayCopy(val title: String, val amount: String, val of: String, 
             amount <= 0 -> if (hidden) "Counts against today's safe amount" else "Safe today ${Money.format(safe.leftToday)}"
             safe.leftToday - amount >= 0 -> if (hidden) "Fits in today's safe amount" else "Safe today ${Money.format(safe.leftToday)} → ${Money.format(safe.leftToday - amount)}"
             else -> if (hidden) "Takes you over today's safe amount" else "Safe today ${Money.format(safe.leftToday)} → ${Money.format(amount - safe.leftToday)} over"
+        }
+
+        /** The line on a bank-text notification: what saving it would do to today. Null with Hide balances on (lock screen). */
+        fun notificationLine(safe: SafeToday, amount: Paise, hidden: Boolean): String? = when {
+            hidden -> null
+            safe.over -> "Today is already past its safe amount"
+            safe.leftToday - amount >= 0 -> "Save it and today goes ${Money.format(safe.leftToday)} → ${Money.format(safe.leftToday - amount)}"
+            else -> "Save it and today goes ${Money.format(safe.leftToday)} → ${Money.format(amount - safe.leftToday)} over"
         }
 
         /** Whether this amount, spent today, goes past today's safe amount (or there was none to begin with). */

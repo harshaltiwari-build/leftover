@@ -466,3 +466,25 @@ fun Avatar(name: String, photo: String?, size: Dp, initialStyle: TextStyle, modi
         else Text(name.ifBlank { "?" }.take(1).uppercase(), style = initialStyle, color = c.lavenderInk)
     }
 }
+
+/**
+ * An amount that counts to its new value when it changes (not when it first appears), landing exactly on it. Hidden
+ * balances and "Remove animations" show the new value straight away.
+ */
+@Composable
+fun CountingAmount(value: Paise, hidden: Boolean, style: TextStyle, modifier: Modifier = Modifier, color: Color = Leftover.colors.ink) {
+    val reduce = app.leftover.ui.theme.rememberReduceMotion()
+    var from by remember { mutableStateOf(value) }
+    var to by remember { mutableStateOf(value) }
+    val progress = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(value, hidden) {
+        // Start from whatever is on screen now, so a second change mid-count carries on smoothly.
+        val current = app.leftover.ui.theme.Motion.countValue(from, to, progress.value)
+        from = current
+        to = value
+        if (hidden || reduce || current == value) { from = value; progress.snapTo(1f); return@LaunchedEffect }
+        progress.snapTo(0f)
+        progress.animateTo(1f, androidx.compose.animation.core.tween(app.leftover.ui.theme.Motion.durationMs(reduce), easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    Amount(app.leftover.ui.theme.Motion.countValue(from, to, progress.value), hidden, style, modifier, color)
+}

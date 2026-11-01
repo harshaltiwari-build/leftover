@@ -45,6 +45,6 @@ class TabsJourneyTest : JourneyBase() {
         navigate { compose.onNodeWithText("Insights").performClick() }
         compose.waitUntilAtLeastOneExists(hasText("Daily average"), 10_000)
         navigate { compose.onNodeWithText("Home").performClick() }
-        compose.waitUntilAtLeastOneExists(hasText("Left until payday"), 10_000)
+        compose.waitUntilAtLeastOneExists(androidx.compose.ui.test.hasContentDescription("Your profile"), 10_000)
     }
 }

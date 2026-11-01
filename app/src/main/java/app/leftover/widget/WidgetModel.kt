@@ -57,9 +57,22 @@ data class WidgetModel(
     val todaySpent: Paise = 0,
     /** With app lock on, the add buttons open the app (and its lock) instead of the quick-entry sheet. */
     val locked: Boolean = false,
+    /** "₹385 of ₹615 safe today", or "Hidden · tap to open". */
+    val safe: String = "",
 ) {
     companion object {
         val Empty = WidgetModel(false, false, 0, 0, 0, emptyList(), emptyList(), null)
+
+        /** The widget's second line: today's safe amount, the same number as Home's ring. */
+        fun safeLine(ledger: Ledger, hidden: Boolean): String {
+            if (hidden) return "Hidden · tap to open"
+            val copy = app.leftover.domain.SafeTodayCopy.of(app.leftover.domain.SafeToday.of(ledger), false)
+            return when {
+                copy.of.startsWith("of ") -> "${copy.amount} ${copy.of} safe today"
+                copy.of.startsWith("over ") -> "${copy.amount} over today's ${copy.of.removePrefix("over ")}"
+                else -> copy.title
+            }
+        }
 
         fun from(snapshot: Snapshot): WidgetModel {
             val ledger = snapshot.ledger
@@ -83,6 +96,7 @@ data class WidgetModel(
                 last = last,
                 todaySpent = app.leftover.domain.ActivityFilter.daySpend(snapshot.transactions.filter { it.occurredAt.toLocalDate() == ledger.today }),
                 locked = snapshot.settings.appLock,
+                safe = safeLine(ledger, snapshot.settings.hideBalances),
             )
         }
     }

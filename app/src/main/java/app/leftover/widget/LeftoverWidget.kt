@@ -137,7 +137,7 @@ private fun Summary(model: WidgetModel) {
     Text("Left to spend", style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold))
     Text(Money.display(model.left, model.hidden), style = TextStyle(color = WidgetColors.ink, fontSize = 30.sp, fontWeight = FontWeight.Bold))
     Text(
-        if (model.hidden) "Hidden · tap to open" else "${Money.format(model.perDay)}/day · ${model.daysToPayday} ${if (model.daysToPayday == 1) "day" else "days"}",
+        model.safe.ifEmpty { if (model.hidden) "Hidden · tap to open" else "${model.daysToPayday} ${if (model.daysToPayday == 1) "day" else "days"} to payday" },
         style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp),
     )
     if (!model.hidden && model.todaySpent > 0) {

@@ -52,8 +52,8 @@ val tabs = listOf(
 /**
  * Four tabs with icons and labels and a raised Add button, on a floating card inside the thumb zone. Five equal slots
  * keep the tabs evenly spaced around Add. The card is drawn behind the row rather than clipping it, so the raised
- * button stays whole. There's no strip behind the bar, so the page shows around it; screens leave room at the bottom
- * so their last item can scroll clear of it.
+ * button stays whole. The card is translucent and there's no strip behind it, so the page shows through as you
+ * scroll; screens leave room at the bottom so their last item can scroll clear of it.
  */
 @Composable
 fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit) {
@@ -62,12 +62,9 @@ fun BottomBar(currentRoute: String?, onTab: (String) -> Unit, onAdd: () -> Unit)
         // No backdrop: the bar floats and the page stays visible around and behind it.
         Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
             Box(Modifier.fillMaxWidth().height(68.dp)) {
-                Box(
-                    Modifier.matchParentSize()
-                        .let { if (c.isDark) it else it.shadow(12.dp, Radius.xl, ambientColor = c.ink.copy(alpha = 0.12f), spotColor = c.ink.copy(alpha = 0.12f)) }
-                        .clip(Radius.xl).background(c.surface)
-                        .let { if (c.isDark) it.border(1.dp, c.hairline, Radius.xl) else it },
-                )
+                // See-through: the list behind stays visible as you scroll. A thin outline instead of a shadow, which
+                // would show through a translucent card as a grey smudge.
+                Box(Modifier.matchParentSize().clip(Radius.xl).background(c.surface.copy(alpha = if (c.isDark) 0.82f else 0.74f)).border(1.dp, c.hairline, Radius.xl))
                 Row(Modifier.matchParentSize().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     tabs.take(2).forEach { TabItem(it, currentRoute in it.sections, onTab, Modifier.weight(1f)) }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {

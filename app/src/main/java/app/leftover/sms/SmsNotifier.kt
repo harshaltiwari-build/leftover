@@ -24,15 +24,15 @@ import app.leftover.ui.Routes
 /** Shows a notification for each tracked or waiting transaction. Amounts are left out when Hide balances is on. */
 class SmsNotifier(private val context: Context) : SmsAlerts {
 
-    override fun saved(transactionId: Long, amount: Long, merchant: String, categoryName: String?, hideAmounts: Boolean) {
+    override fun saved(transactionId: Long, amount: Long, merchant: String, categoryName: String?, hideAmounts: Boolean, todayLine: String?) {
         val id = SAVED_BASE + (transactionId % 10_000).toInt()
         val title = if (hideAmounts) "Transaction saved" else "Saved ${Money.format(amount, showPaise = true)}${merchant.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}"
-        val builder = base(id, title, categoryName ?: "Added from your bank text")
+        val builder = base(id, title, listOfNotNull(categoryName ?: "Added from your bank text", todayLine).joinToString(" · "))
         builder.addAction(0, "Undo", broadcast(SmsActions.UNDO, id, requestCode = id * 10) { putExtra(SmsActions.EXTRA_TRANSACTION, transactionId) })
         post(id, builder)
     }
 
-    override fun review(pending: PendingSmsEntity, actions: List<ReviewAction>, hideAmounts: Boolean) {
+    override fun review(pending: PendingSmsEntity, actions: List<ReviewAction>, hideAmounts: Boolean, todayLine: String?) {
         val id = REVIEW_BASE + (pending.id % 10_000).toInt()
         val what = if (pending.kind == SmsKind.DEBIT) "Spent" else "Received"
         val title = when {
@@ -40,7 +40,7 @@ class SmsNotifier(private val context: Context) : SmsAlerts {
             pending.merchant.isNotBlank() -> "$what ${Money.format(pending.amount, showPaise = true)} · ${pending.merchant}"
             else -> "$what ${Money.format(pending.amount, showPaise = true)}"
         }
-        val text = if (actions.isEmpty()) "Open Leftover to finish this one" else "Pick one to save it"
+        val text = todayLine ?: if (actions.isEmpty()) "Open Leftover to finish this one" else "Pick one to save it"
         val builder = base(id, title, text)
         actions.forEachIndexed { index, action ->
             builder.addAction(

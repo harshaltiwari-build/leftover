@@ -50,4 +50,12 @@ class WidgetModelTest {
     @Test fun presetsPointAtAnAccount() {
         assertEquals(1L, QuickPresets.from(ledger(spend(20, 1, 1), spend(20, 2, 1))).single().accountId)
     }
+
+    @Test fun `the widget shows safe today, and nothing when balances are hidden`() {
+        val l = ledger(spend(120, 0, 1))
+        val shown = WidgetModel.safeLine(l, hidden = false)
+        val safe = app.leftover.domain.SafeToday.of(l)
+        assertEquals("${app.leftover.domain.Money.format(safe.leftToday)} of ${app.leftover.domain.Money.format(safe.target)} safe today", shown)
+        assertEquals("Hidden · tap to open", WidgetModel.safeLine(l, hidden = true))
+    }
 }

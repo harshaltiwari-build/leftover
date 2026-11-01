@@ -37,11 +37,13 @@ class SafeTodayCopyTest {
         assertTrue(c.warning)
     }
 
+    // The main card already says "Over until payday" and by how much; this card says what that means for today.
     @Test fun `spent past what's left`() {
         val c = SafeTodayCopy.of(safe(0, 500, 10, -1_240), hidden = false)
-        assertEquals("Over until payday", c.title)
-        assertEquals("₹1,240", c.amount)
-        assertTrue(c.line.startsWith("This comes out of bill or goal money"))
+        assertEquals("Safe to spend today", c.title)
+        assertEquals("₹0", c.amount)
+        assertEquals("Essentials only until payday", c.line)
+        assertTrue(c.warning)
     }
 
     @Test fun `last day before payday`() {
@@ -80,5 +82,14 @@ class SafeTodayCopyTest {
         assertFalse(SafeTodayCopy.goesOver(day, rupees(385)))
         assertTrue(SafeTodayCopy.goesOver(day, rupees(386)))
         assertTrue(SafeTodayCopy.goesOver(safe(7, 200, 27, 0), 0))
+    }
+
+    @Test fun `bank text notification line`() {
+        val day = safe(615, 230, 16, 9_610)
+        assertEquals("Save it and today goes ₹385 → ₹225", SafeTodayCopy.notificationLine(day, rupees(160), hidden = false))
+        assertEquals("Save it and today goes ₹385 → ₹115 over", SafeTodayCopy.notificationLine(day, rupees(500), hidden = false))
+        assertEquals("Today is already past its safe amount", SafeTodayCopy.notificationLine(safe(615, 700, 16, 9_000), rupees(100), hidden = false))
+        // On the lock screen, Hide balances means no amounts at all.
+        assertEquals(null, SafeTodayCopy.notificationLine(day, rupees(160), hidden = true))
     }
 }

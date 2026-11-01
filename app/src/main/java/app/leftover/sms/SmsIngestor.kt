@@ -27,8 +27,9 @@ data class ReviewAction(val label: String, val type: TxType, val categoryId: Lon
 
 /** What the ingestor tells the user. Kept as an interface so the logic here has no notification code in it. */
 interface SmsAlerts {
-    fun saved(transactionId: Long, amount: Long, merchant: String, categoryName: String?, hideAmounts: Boolean)
-    fun review(pending: PendingSmsEntity, actions: List<ReviewAction>, hideAmounts: Boolean)
+    /** [todayLine] says what the spend does to today's safe amount; null when amounts are hidden or it isn't spending. */
+    fun saved(transactionId: Long, amount: Long, merchant: String, categoryName: String?, hideAmounts: Boolean, todayLine: String? = null)
+    fun review(pending: PendingSmsEntity, actions: List<ReviewAction>, hideAmounts: Boolean, todayLine: String? = null)
 
     /** A recurring UPI debit the user hasn't seen before. */
     fun mandate(merchant: String, amount: Long, hideAmounts: Boolean) {}
@@ -95,11 +96,16 @@ class SmsIngestor(private val repository: LeftoverRepository, private val alerts
         val decision = if (decided == SmsDecision.AutoSave && !snapshot.settings.smsAutoSave) SmsDecision.Review(PendingReason.ASK_FIRST) else decided
         val quiet = quiet || !snapshot.settings.smsNotify
         val hide = snapshot.settings.hideBalances
+        val safe = app.leftover.domain.SafeToday.of(snapshot.ledger)
+        val todayLine = if (parsed.kind == SmsKind.DEBIT) app.leftover.domain.SafeTodayCopy.notificationLine(safe, parsed.amount, hide) else null
 
         return when (decision) {
             SmsDecision.AutoSave -> {
                 val id = repository.saveFromSms(TxType.EXPENSE, parsed.amount, accountId!!, categoryId, parsed.merchant, at, source)
-                if (!quiet) alerts.saved(id, parsed.amount, parsed.merchant, snapshot.categories.firstOrNull { it.id == categoryId }?.name, hide)
+                if (!quiet) alerts.saved(
+                    id, parsed.amount, parsed.merchant, snapshot.categories.firstOrNull { it.id == categoryId }?.name, hide,
+                    if (hide) null else app.leftover.domain.SafeTodayCopy.impact(safe, parsed.amount),
+                )
                 IngestResult.SAVED
             }
             is SmsDecision.Review -> {
@@ -108,7 +114,7 @@ class SmsIngestor(private val repository: LeftoverRepository, private val alerts
                     isCard = parsed.isCard, occurredAt = at, reason = decision.reason, accountId = accountId, suggestedCategoryId = categoryId,
                 )
                 val id = repository.addPending(pending)
-                if (!quiet) alerts.review(pending.copy(id = id), actionsFor(snapshot, parsed, decision.reason, accountId, categoryId), hide)
+                if (!quiet) alerts.review(pending.copy(id = id), actionsFor(snapshot, parsed, decision.reason, accountId, categoryId), hide, todayLine)
                 IngestResult.QUEUED
             }
         }

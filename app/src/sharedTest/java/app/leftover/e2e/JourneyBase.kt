@@ -80,7 +80,8 @@ abstract class JourneyBase {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         // A cold start on a phone can take a moment before the first frame exists; until then there's nothing to query.
         compose.waitUntil(20_000) {
-            runCatching { compose.onAllNodes(hasText("Left until payday")).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
+            // The profile button is on Home every day; the card's title changes (payday, over, no balance).
+            runCatching { compose.onAllNodes(hasContentDescription("Your profile")).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
         }
     }
 

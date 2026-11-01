@@ -96,6 +96,7 @@ fun HomeScreen(
     onAddBalance: () -> Unit,
     onOpenProfile: () -> Unit = onOpenSettings,
     onOpenTimeline: () -> Unit = {},
+    onOpenRecap: () -> Unit = {},
     onOpenSplit: () -> Unit = {},
     onOpenPlan: () -> Unit = onOpenBills,
 ) {
@@ -115,14 +116,22 @@ fun HomeScreen(
             Banner("Couldn't back up your data", c.emberBg, c.emberText, trailing = "Details", onClick = onOpenBackup)
         }
         val noBalance = snapshot.accounts.none { it.includeInLeft && it.type != app.leftover.data.db.AccountType.CARD }
-        if (noBalance) {
-            Banner("Add your balance to see what's safe to spend", c.lavender, c.lavenderInk, trailing = "Add balance", onClick = onAddBalance)
-        }
         if (snapshot.pendingSms.isNotEmpty()) {
             val n = snapshot.pendingSms.size
             Banner("$n bank ${if (n == 1) "text needs" else "texts need"} a look", c.lavender, c.lavenderInk, trailing = "Review", onClick = onOpenReview)
         }
-        HeroCard(snapshot, left, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown, onOpenTimeline = onOpenTimeline)
+        val hero = remember(ledger, hidden) { app.leftover.domain.HeroState.of(ledger, snapshot.settings.usualIncome, hidden) }
+        HeroCard(
+            snapshot, left, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown, onOpenTimeline = onOpenTimeline,
+            hero = hero, onHeroAction = {
+                when (hero.kind) {
+                    app.leftover.domain.HeroKind.NO_BALANCE -> onAddBalance()
+                    app.leftover.domain.HeroKind.OVER -> onOpenTimeline()
+                    app.leftover.domain.HeroKind.PAYDAY -> onOpenRecap()
+                    app.leftover.domain.HeroKind.NORMAL -> Unit
+                }
+            },
+        )
         if (!noBalance) SafeTodayCard(safe, hidden, onOpenAfford)
         QuickActions(onOpenVoice, onOpenAfford, onOpenSplit, onOpenGoals)
         val warning = remember(ledger) { PaceWarning.worst(ledger) }
@@ -158,7 +167,10 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: 
 }
 
 @Composable
-private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit, onOpenTimeline: () -> Unit) {
+private fun HeroCard(
+    snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit, onOpenTimeline: () -> Unit,
+    hero: app.leftover.domain.HeroState, onHeroAction: () -> Unit,
+) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val cycle = snapshot.cycle
@@ -171,14 +183,16 @@ private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, sho
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Left until payday", style = Type.bodyStrong, color = c.onHero)
+            Text(hero.title, style = Type.bodyStrong, color = if (hero.kind == app.leftover.domain.HeroKind.PAYDAY) c.heroNumber else c.onHero)
             Text(
                 "${left.daysUntilPayday} ${if (left.daysUntilPayday == 1) "day" else "days"} · ${UiFormat.dayMonth(cycle.nextPayday)}",
                 style = Type.smallBold, color = c.onHeroMuted,
             )
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
-            Amount(left.left, hidden, Type.display48, color = c.heroNumber, modifier = Modifier.weight(1f))
+        if (hero.kind != app.leftover.domain.HeroKind.NO_BALANCE) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
+            val over = hero.kind == app.leftover.domain.HeroKind.OVER
+            // Over until payday shows by how much, in the warm colour; the title already says it's over.
+            app.leftover.ui.components.CountingAmount(if (over) -left.left else left.left, hidden, Type.display48, color = if (over) c.ember else c.heroNumber, modifier = Modifier.weight(1f))
             Row(
                 Modifier.height(40.dp).clip(Radius.pill).border(1.dp, c.onHeroMuted.copy(alpha = 0.4f), Radius.pill).clickable(role = Role.Button, onClick = onToggleHow).padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -186,6 +200,13 @@ private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, sho
                 Text("How?", style = Type.captionBold, color = c.onHero)
                 Icon(LeftoverIcons.ChevronDown, null, tint = c.onHero, modifier = Modifier.size(14.dp))
             }
+        }
+        hero.line?.let { Text(it, style = Type.caption, color = c.onHeroMuted) }
+        hero.action?.let { label ->
+            Text(
+                label, style = Type.captionBold, color = c.onLime,
+                modifier = Modifier.clip(Radius.md).background(c.lime).clickable(role = Role.Button, onClick = onHeroAction).padding(horizontal = 14.dp, vertical = 10.dp),
+            )
         }
         if (spentBefore > 0 && !hidden) {
             val less = spentNow <= spentBefore
@@ -242,6 +263,11 @@ private fun HeroStat(label: String, amount: Long, hidden: Boolean, modifier: Mod
 private fun SafeTodayCard(safe: SafeToday, hidden: Boolean, onOpenAfford: () -> Unit) {
     val c = Leftover.colors
     val ringColor = if (safe.over || safe.leftNow <= 0) c.ember else c.limeDeep
+    // The ring sweeps to its new size when you spend; with "Remove animations" on it just changes.
+    val sweep by androidx.compose.animation.core.animateFloatAsState(
+        if (safe.over || safe.leftNow <= 0) 1f else 1f - safe.fraction,
+        androidx.compose.animation.core.tween(app.leftover.ui.theme.Motion.durationMs(app.leftover.ui.theme.rememberReduceMotion())), label = "safe-ring",
+    )
     val track = c.track
     val copy = SafeTodayCopy.of(safe, hidden)
     val description = "${copy.title}. ${copy.amount} ${copy.of}. ${copy.line}"
@@ -251,7 +277,7 @@ private fun SafeTodayCard(safe: SafeToday, hidden: Boolean, onOpenAfford: () -> 
                 val stroke = 7.dp.toPx()
                 val inset = stroke / 2
                 drawArc(track, 0f, 360f, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
-                val remaining = if (safe.over || safe.leftNow <= 0) 1f else 1f - safe.fraction
+                val remaining = sweep
                 if (remaining > 0f) drawArc(ringColor, -90f, 360f * remaining, false, topLeft = Offset(inset, inset), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke, cap = StrokeCap.Round))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

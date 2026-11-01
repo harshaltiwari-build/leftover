@@ -64,7 +64,7 @@ class OnboardingBillsJourneyTest : JourneyBase() {
         navigate { compose.onNodeWithText("Looks right").performClick() }
         waitForText("Go to home")
         navigate { compose.onNodeWithText("Go to home").performClick() }
-        waitForText("Left until payday")
+        compose.waitUntilAtLeastOneExists(hasContentDescription("Your profile"), 20_000)
 
         val bills = runBlocking { app.repository.snapshot.first().bills }.associateBy { it.name }
         assertEquals(setOf("Flat rent", "Wi-Fi"), bills.keys)

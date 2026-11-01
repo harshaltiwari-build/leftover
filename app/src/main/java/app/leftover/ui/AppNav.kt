@@ -190,6 +190,7 @@ fun AppNav(viewModel: AppViewModel) {
                         onOpenReview = { nav.navigate(Routes.REVIEW) },
                         onOpenBackup = { nav.navigate(Routes.BACKUP) },
                         onAddBalance = { nav.navigate(Routes.addAccount()) },
+                        onOpenRecap = { nav.navigate(Routes.RECAP) },
                         onOpenTimeline = { nav.navigate(Routes.TIMELINE) },
                         onOpenProfile = { nav.navigate(Routes.PROFILE) },
                         onOpenSplit = { nav.navigate(Routes.SPLIT) },
