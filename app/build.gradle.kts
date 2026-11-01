@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.yourorg.leftover"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 9
+        versionName = "0.8.0"
         // Text recognition is native code. Phones are ARM; leaving out x86 keeps about 16 MB out of the APK.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

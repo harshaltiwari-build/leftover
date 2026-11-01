@@ -78,7 +78,19 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] **Profile** screen.
 - [x] **Quick add** date strip, recent categories first, safe-today impact.
 - [x] **Plan** "spoken for" card; soft-shadow cards and a floating tab bar.
-- [ ] Four-question onboarding (income, payday, fixed costs, saving target), money timeline, merged "Can I afford this?", widget and lock-screen redesign, a single monthly spending budget.
+
+## v0.8: built test-first
+
+- [x] **One monthly spending budget** with pace and status on Plan.
+- [x] **Money timeline**: day by day until payday, ending on Left to spend.
+- [x] **"Can I afford this?"** in today's terms, with every number it changes and a typed price.
+- [x] **Payment screenshots save themselves** when clear (with Undo, limits and a switch).
+- [x] **Edit and hide accounts**; **editable setup bills**; **profile photo**; **icons** across the app.
+- [x] **Activity**: swipe right to change category, More filters. **Entry page**: read fields, payee stats, similar spends.
+- [x] **Goals behind their date** strip; **Home states** for no balance, over until payday and payday.
+- [x] **Bank-text notifications** and the widget in safe-today terms; counting numbers and a sweeping ring, off with "Remove animations".
+- [x] **Instrumented journey tests** that run on the JVM and on a phone.
+- [ ] Four-question onboarding with a saving target, and a lock-screen redesign.
 
 ## Not built, on purpose or not yet
 
@@ -96,6 +108,6 @@ Opening animation, onboarding, Home, Quick add, Activity, Accounts, Budgets, Goa
 - [x] Encrypt the backup file with a passphrase.
 - [ ] Android 360 dp layout pass on every screen, and a full 200% font-size pass screen by screen.
 - [ ] Hindi and other Indian-language UI.
-- [ ] Instrumented (device) tests for the Compose screens.
+- [x] Instrumented (device) tests for the Compose screens.
 
 Ideas and votes welcome in the issue tracker.

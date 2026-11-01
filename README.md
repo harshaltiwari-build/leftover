@@ -11,18 +11,18 @@ Leftover is a free, open-source Android money app for students, first-job earner
 - **Trustworthy accounting.** Transfers between your accounts and credit-card repayments are never counted as spending; refunds reduce spending; money friends owe you isn't counted until it arrives.
 - **Every number can show its maths.** Tap **How?** on Home to see exactly where Left to spend comes from.
 
-> **Status: early (v0.7).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
+> **Status: early (v0.8).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
 
-## What's in v0.7
+## What's in v0.8
 
 | Area | Features |
 |---|---|
-| Start | Animated opening, onboarding that records a first expense, payday and balance set-up |
-| Home | Left until payday with a vs-last-cycle chip and Came in · Spent · For goals, **safe to spend today** with a ring and tomorrow's amount, one pace warning, category tiles, next 7 days of bills, shortcuts, recent activity; full breakdown under How? |
-| Capture | Quick add (amount first, custom keypad, any past date, new categories on the spot), expense / income / transfer, undo; **voice entry** ("spent 180 on coffee today") with a review step and a typed fallback; **share a payment screenshot** to Leftover (or pick one in Quick add) and it reads the amount, payee, date and UPI ref on the phone, guesses the category from past spends, and warns about failed payments and likely duplicates |
-| Widgets | **Left to spend** (small / medium / large, with Expense and Income buttons and today's spending) and **Quick log** (one-tap repeat spends with Undo); add buttons open a quick-entry sheet over the home screen; both follow Hide balances and dark mode. Launcher shortcuts for Expense, Income, voice and Reports |
-| Activity | Day-grouped list with sticky headers, search and filters (including Regrets and Has receipt), swipe left to delete with Undo, transaction detail (type, category, note, Needed / Worth it / Regret, receipt photo), accounts |
-| Plan | Budgets with pace marker and rollover, editable limits and categories, goals with a "what if I save…" slider, bills and subscriptions, wishlist cooldown, "Can I afford this?" |
+| Start | Animated opening, onboarding that records a first expense, payday and balance set-up, bills you can rename, price, date or remove |
+| Home | Left until payday with a vs-last-cycle chip and Came in · Spent · For goals, **safe to spend today** with a ring and tomorrow's amount, one pace warning, category tiles, next 7 days of bills, shortcuts, recent activity; full breakdown under How? and a **day-by-day timeline to payday**; calm states for no balance yet, over until payday and payday |
+| Capture | Quick add (amount first, custom keypad, any past date, new categories on the spot), expense / income / transfer, undo; **voice entry** ("spent 180 on coffee today") with a review step and a typed fallback; **share a payment screenshot** to Leftover (or pick one in Quick add) and it reads the amount, payee, date and UPI ref on the phone, guesses the category from past spends, and warns about failed payments and likely duplicates; **clear, successful payments save themselves** with Undo (switch in Settings) |
+| Widgets | **Left to spend** (small / medium / large, with Expense and Income buttons and today's safe amount) and **Quick log** (one-tap repeat spends with Undo); add buttons open a quick-entry sheet over the home screen; both follow Hide balances and dark mode. Launcher shortcuts for Expense, Income, voice and Reports |
+| Activity | Day-grouped list with sticky headers, search and filters (including Regrets and Has receipt), swipe left to delete or **right to change category** (both with Undo), **More filters** (category, account, cycle, amount), transaction detail (type, category, note, Needed / Worth it / Regret, receipt photo, what a screenshot gave, how often you pay that payee, similar spends), accounts you can add, edit and hide |
+| Plan | **One spending budget** for the cycle with pace and status, per-category budgets with pace marker and rollover, editable limits and categories, goals with a "what if I save…" slider and a strip for goals behind their date, bills and subscriptions, wishlist cooldown, "Can I afford this?" answered in today's terms |
 | Auto-tracking | Optional: reads bank texts from named senders (never from people), adds clean spends, asks about the rest in a review queue, notifies with one-tap categories; off by default and deletable in one tap |
 | Split | Friends and groups, split a bill equally / by amount / by shares, settle up through your UPI app, trip and event budgets with dates and a My share view, archiving, fewest payments to settle |
 | Insights | Trend with your usual level, category breakdown with the reason behind each change, fees and charges, last-cycle recap shared as an image |
@@ -41,7 +41,7 @@ Leftover is a free, open-source Android money app for students, first-job earner
 | Backup | Passphrase-encrypted backup files, scheduled backups to a folder you pick, restore from the welcome screen |
 | Voice | English and Hindi, including Hinglish ("chai pe bees rupaye") |
 | Look | Light / dark / system theme, pure black for OLED, **accent colour** (Lime, Lavender, Peach, Sky) and **font** (Manrope, Bricolage, Plus Jakarta Sans) |
-| Profile | Entries, cycles tracked, moved to goals, kept by waiting, money rhythm, your year so far, backup status |
+| Profile | **Profile photo**, entries, cycles tracked, moved to goals, kept by waiting, money rhythm, your year so far, backup status |
 | Data | CSV export, delete everything |
 
 ## Build it
