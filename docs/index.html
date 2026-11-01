@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leftover - know what you can spend until payday</title>
+<meta name="description" content="Leftover tells you what's safe to spend until payday. Free, open source, works offline, no bank login. Designed and built by Harshal Tiwari.">
+<meta property="og:title" content="Leftover - पे-डे तक बेफ़िक्र">
+<meta property="og:description" content="Know what you can spend until payday. Free, offline, no bank login.">
+<meta property="og:image" content="img/app/home-light.jpg">
+<meta name="theme-color" content="#20251B">
+<link rel="icon" href="img/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Manrope:wght@400..800&family=Baloo+2:wght@700;800&display=swap">
+<style>
+:root{--line:#20251B;--page:#F8F8F2;--card:#FFFFFF;--text:#20251B;--text2:#3A4033;--hero:#20251B;--lime:#D6F478}
+:root[data-theme="dark"]{--line:#C9CEBD;--page:#111410;--card:#1C2018;--text:#F2F4EC;--text2:#C5CABB;--hero:#0B0D09}
+.tbtn{width:44px;height:44px;border-radius:50%;border:3px solid var(--line);background:#FFFFFF;color:#20251B;box-shadow:3px 4px 0 var(--line);cursor:pointer;display:grid;place-items:center;margin-left:8px;padding:0}
+.tbtn svg{width:22px;height:22px}
+.tbtn .sun{display:none}
+:root[data-theme="dark"] .tbtn .sun{display:block}
+:root[data-theme="dark"] .tbtn .moon{display:none}
+
+.shot{margin:0;width:230px;border:3px solid var(--line);border-radius:34px;box-shadow:6px 8px 0 var(--line);overflow:hidden;background:var(--card);flex:none}
+.shot img{display:block;width:100%;height:auto}
+.shot .md{display:none}
+:root[data-theme="dark"] .shot .ml{display:none}
+:root[data-theme="dark"] .shot .md{display:block}
+.cap{margin:14px 0 0;text-align:center;font-weight:700;font-size:18px}
+.gal{display:flex;gap:34px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.gal figure{margin:0}
+.rv{opacity:0;transform:translateY(26px);transition:opacity .55s,transform .55s}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page)}
+a{color:inherit;text-decoration:none}
+.lo{font-family:Manrope,system-ui,sans-serif;color:var(--text);background:var(--page);overflow:hidden;position:relative;font-variant-numeric:tabular-nums}
+.lo *{box-sizing:border-box}
+.lo h1,.lo h2,.lo h3,.lo p{margin:0}
+.lo .disp{font-family:'Bricolage Grotesque','Baloo 2',Manrope,sans-serif;font-weight:800;letter-spacing:-.02em}
+.lo .wrap{max-width:1180px;margin:0 auto;padding:0 24px;width:100%}
+.lo .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border-radius:999px;border:3px solid var(--line);box-shadow:4px 5px 0 var(--line);font-weight:800;font-size:17px;cursor:pointer;font-family:inherit;color:#20251B;background:var(--lime);transition:transform .15s,box-shadow .15s}
+.lo .btn:hover{transform:translate(2px,2px);box-shadow:2px 3px 0 var(--line)}
+.lo .btn:focus-visible,.lo a:focus-visible,.lo summary:focus-visible,.tbtn:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
+.lo .card{color:#20251B;border:3px solid var(--line);border-radius:28px;box-shadow:4px 5px 0 var(--line);padding:28px;position:relative;overflow:hidden}
+.lo .nav .nlw{display:flex;gap:10px}
+.lo .nav a.nl{font-weight:700;font-size:16px;padding:12px 8px;color:#F8F8F2}
+.lo .nav a.nl:hover{text-decoration:underline}
+.lo .eyebrow{color:#20251B;display:inline-block;font-weight:800;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border:2.5px solid var(--line);border-radius:999px;background:#FFFFFF;box-shadow:3px 4px 0 var(--line)}
+.lo .hero{background:var(--hero);color:#F8F8F2;position:relative;overflow:hidden;border-bottom:3px solid var(--line)}
+.lo .heroGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:center;padding-top:40px;padding-bottom:96px}
+.lo .h1{font-size:clamp(44px,7vw,88px);line-height:1;text-shadow:4px 5px 0 #000}
+.lo .h1 .hi{font-family:'Baloo 2','Bricolage Grotesque',sans-serif;color:var(--lime)}
+.lo .tickerWrap{border-bottom:3px solid var(--line);background:var(--lime);overflow:hidden;white-space:nowrap}
+.lo .ticker{display:inline-flex;animation:loTick 34s linear infinite}
+.lo .ticker span{font-family:'Bricolage Grotesque',Manrope,sans-serif;font-weight:800;font-size:24px;padding:12px 28px;display:inline-flex;align-items:center;gap:28px;color:#20251B}
+.lo .ticker span::after{content:"";width:14px;height:14px;border-radius:50%;background:#20251B;border:2.5px solid #20251B}
+.lo .bento{display:grid;grid-template-columns:repeat(6,1fr);gap:22px}
+.lo .bento .card h3{font-family:'Bricolage Grotesque',Manrope,sans-serif;font-weight:800;font-size:28px;line-height:1.05;margin-bottom:10px;letter-spacing:-.01em}
+.lo .bento .card p{font-size:17px;line-height:1.5}
+.lo .c1{grid-column:span 4;grid-row:span 2}
+.lo .c2,.lo .c3{grid-column:span 2}
+.lo .c4,.lo .c5,.lo .c6,.lo .c7{grid-column:span 3}
+.lo .money{font-family:'Bricolage Grotesque',Manrope,sans-serif;font-weight:800}
+.lo .bar{display:flex;height:16px;border-radius:999px;overflow:hidden;border:2.5px solid #20251B;gap:0}
+.lo .bar i{display:block;height:100%}
+.lo .line{display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding:8px 0;border-top:2px dashed rgba(32,37,27,.25)}
+.lo .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.lo .num{width:56px;height:56px;border-radius:50%;border:3px solid var(--line);background:var(--lime);display:flex;align-items:center;justify-content:center;box-shadow:3px 4px 0 var(--line);margin-bottom:16px;color:#20251B}
+.lo .num svg{width:26px;height:26px}
+.lo .dl{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px}
+.lo .dlb{display:flex;flex-direction:column;gap:6px;background:#FFFFFF;color:#20251B;border:3px solid var(--line);border-radius:22px;box-shadow:4px 5px 0 var(--line);padding:18px 20px;min-height:44px;transition:transform .15s,box-shadow .15s}
+.lo .dlb:hover{transform:translate(2px,2px);box-shadow:2px 3px 0 var(--line)}
+.lo .dlb strong{font-size:18px}
+.lo .dlb span{font-size:15px;line-height:1.4;color:#3A4033}
+.lo details{border:3px solid var(--line);border-radius:20px;background:var(--card);box-shadow:4px 5px 0 var(--line);margin-bottom:16px}
+.lo summary{color:var(--text);list-style:none;cursor:pointer;padding:20px 24px;font-weight:800;font-size:19px;display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:44px}
+.lo summary::-webkit-details-marker{display:none}
+.lo summary::after{content:"+";font-family:'Bricolage Grotesque',Manrope,sans-serif;font-size:28px;line-height:1;width:36px;height:36px;border-radius:50%;border:2.5px solid var(--line);background:var(--lime);color:#20251B;display:flex;align-items:center;justify-content:center;flex:none}
+.lo details[open] summary::after{content:"\2212";background:#E4DDFB}
+.lo details p,.lo details ol{padding:0 24px 22px;font-size:17px;line-height:1.6;color:var(--text2);margin:0}
+.lo details ol{padding-left:46px}
+.lo .foot{background:#20251B;color:#F8F8F2;border-top:3px solid var(--line)}
+.lo .foot a{color:#F8F8F2;text-decoration:underline;text-underline-offset:3px}
+.lo .foot nav a{display:inline-flex;align-items:center;min-height:44px}
+.lo .nav a[aria-label]{min-height:44px}
+@keyframes loTick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes loFloat{0%,100%{transform:translate(0,0) rotate(var(--r,0deg))}50%{transform:translate(0,-16px) rotate(calc(var(--r,0deg) + 10deg))}}
+@keyframes loBob{0%,100%{transform:translateY(0) rotate(var(--r,0deg))}50%{transform:translateY(-12px) rotate(var(--r,0deg))}}
+@keyframes loDash{to{stroke-dashoffset:-64}}
+@keyframes loRing{from{stroke-dashoffset:132}to{stroke-dashoffset:40}}
+@media (max-width:900px){
+.lo .heroGrid{grid-template-columns:1fr;padding-bottom:64px}
+.lo .heroShots{height:470px !important}
+.lo .bento{grid-template-columns:1fr 1fr}
+.lo .c1,.lo .c2,.lo .c3,.lo .c4,.lo .c5,.lo .c6,.lo .c7{grid-column:span 2;grid-row:auto}
+.lo .steps,.lo .dl{grid-template-columns:1fr}
+.lo .nav .nlw{display:none}
+}
+@media (max-width:480px){
+.lo .nav .disp{font-size:24px !important}
+.lo .nav img{width:40px;height:40px}
+.lo .nav .btn{padding:0 14px !important}
+.lo .heroShots .shot{width:180px}
+.lo .heroShots{height:400px !important}
+.lo .card{padding:22px}
+.lo .wrap{padding:0 16px}
+}
+@media (max-width:359px){.lo .nav .btn{display:none}}
+@media (max-width:600px){.lo .hero > span[aria-hidden],.lo .hero > svg[aria-hidden]{display:none}.lo .heroGrid{padding-top:24px}}
+@media (prefers-reduced-motion: reduce){.lo *{animation:none !important}}
+</style>
+</head>
+<body>
+<div class="lo">
+
+<section class="hero">
+<span aria-hidden="true" style="--r:0deg;position:absolute;left:4%;top:150px;width:54px;height:54px;border-radius:50%;background:#D6F478;border:2.5px solid #000;box-shadow:3px 4px 0 #000;animation:loFloat 4.2s ease-in-out infinite"></span>
+<span aria-hidden="true" style="--r:18deg;position:absolute;left:46%;top:96px;width:44px;height:44px;border-radius:10px;transform:rotate(18deg);background:#E4DDFB;border:2.5px solid #000;box-shadow:3px 4px 0 #000;animation:loFloat 3.6s ease-in-out .6s infinite"></span>
+<span aria-hidden="true" style="position:absolute;left:38%;bottom:40px;width:78px;height:78px;border-radius:50%;border:3px solid #D6F478;opacity:.6"></span>
+<span aria-hidden="true" style="position:absolute;right:3%;bottom:60px;width:34px;height:34px;border-radius:50%;background:#FCE3D3;border:2.5px solid #000;box-shadow:2px 3px 0 #000;animation:loFloat 5s ease-in-out infinite"></span>
+<svg aria-hidden="true" width="64" height="40" viewBox="0 0 64 40" fill="none" stroke-width="3" stroke-linecap="round" style="stroke:#D6F478;position:absolute;left:3%;bottom:120px"><path d="M2 20c6-14 12-14 18 0s12 14 18 0 12-14 18 0" stroke-dasharray="10 6" style="animation:loDash 1.6s linear infinite"></path></svg>
+
+<div class="wrap nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding-top:22px;padding-bottom:6px">
+<a href="#top" aria-label="Leftover home" style="display:flex;align-items:center;gap:10px">
+<img src="img/icon.png" alt="" width="46" height="46" style="border-radius:14px;border:3px solid #000;box-shadow:3px 4px 0 #000;display:block">
+<span class="disp" style="font-size:30px;color:#F8F8F2;text-shadow:2px 3px 0 #000">Leftover</span>
+</a>
+<div style="display:flex;align-items:center;gap:6px">
+<span class="nlw">
+<a class="nl" href="#features">Features</a>
+<a class="nl" href="#private">Privacy</a>
+<a class="nl" href="#faq">FAQ</a>
+</span>
+<button class="tbtn" id="theme" type="button" aria-label="Switch between light and dark theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button>
+<a class="btn" href="#download" style="min-height:44px;padding:0 18px;font-size:16px;margin-left:8px">Download</a>
+</div>
+</div>
+
+<div class="wrap heroGrid" id="top" style="position:relative">
+<div style="display:flex;flex-direction:column;gap:24px;align-items:flex-start">
+<span class="eyebrow">Free. Offline. No bank login.</span>
+<h1 class="disp h1"><span class="hi">पे-डे तक बेफ़िक्र.</span><br>Know what you can spend.</h1>
+<p style="font-size:21px;line-height:1.45;max-width:540px;font-weight:500;color:#E4E7DC">Leftover tells you what's safe to spend until payday, and shows its maths. It lives on your phone, needs no account and never goes online.</p>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+<a class="btn" id="hero-dl" href="#download" style="min-height:56px;font-size:19px;padding:0 28px">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#20251B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path></svg>
+<span id="hero-ver">Download v0.8.1</span></a>
+<a class="btn" href="https://github.com/harshaltiwari-build/leftover" style="min-height:56px;font-size:19px;padding:0 28px;background:#FFFFFF">View on GitHub</a>
+</div>
+</div>
+
+<div class="heroShots" style="position:relative;height:560px;display:flex;justify-content:center;align-items:center">
+<figure class="shot" style="position:absolute;left:2%;top:40px;--r:-8deg;transform:rotate(-8deg);animation:loBob 4.4s ease-in-out infinite"><img class="ml" src="img/app/home-light.jpg" alt="Leftover home: ₹10,071 left until payday and ₹2,292 safe to spend today" width="644" height="1334"><img class="md" src="img/app/home-dark.jpg" alt="Leftover home: ₹10,071 left until payday, with the breakdown open" width="644" height="1334"></figure>
+<figure class="shot" style="position:absolute;right:0;top:0;--r:7deg;transform:rotate(7deg);animation:loBob 5s ease-in-out .5s infinite"><img class="ml" src="img/app/afford-light.jpg" alt="Can I afford this? A ₹2,999 buy is a stretch: the next 3 days each get ₹1,000 less" width="644" height="1334"><img class="md" src="img/app/afford-dark.jpg" alt="Can I afford this? A ₹2,999 buy is a stretch: the next 3 days each get ₹1,000 less" width="644" height="1334"></figure>
+</div>
+</div>
+</section>
+
+<div class="tickerWrap" aria-hidden="true">
+<div class="ticker">
+<span>Safe to spend today</span><span>Left until payday</span><span>No bank login</span><span>Works offline</span><span>Screenshot to expense</span><span>Split with friends</span><span>Hide balances</span><span>Hindi + English voice</span>
+<span>Safe to spend today</span><span>Left until payday</span><span>No bank login</span><span>Works offline</span><span>Screenshot to expense</span><span>Split with friends</span><span>Hide balances</span><span>Hindi + English voice</span>
+</div>
+</div>
+
+<section id="features" style="padding:96px 0 40px">
+<div class="wrap">
+<div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start;margin-bottom:40px">
+<span class="eyebrow" style="background:#FCE3D3">Features</span>
+<h2 class="disp" style="font-size:clamp(36px,5vw,56px);line-height:1.02">Built around payday, not the calendar.</h2>
+</div>
+<div class="bento">
+<div class="card rv c1" style="background:#D6F478;display:flex;flex-direction:column;justify-content:space-between;gap:28px">
+<div>
+<h3 style="font-size:40px">One number you can trust</h3>
+<p style="font-size:20px;max-width:480px">Left until payday is your money after bills, card dues and goal savings. Tap How? and every rupee of it is shown.</p>
+</div>
+<div aria-hidden="true" style="background:#FFFFFF;border:3px solid #20251B;border-radius:22px;padding:18px;max-width:440px">
+<div class="money" style="font-size:40px;line-height:1">₹10,071</div>
+<div style="font-size:14px;font-weight:700;color:#3A4033;margin:4px 0 12px">left until payday · 4 days</div>
+<div class="bar"><i style="width:45%;background:#B9BDB0"></i><i style="width:13%;background:#B9A8F5"></i><i style="width:42%;background:#D6F478"></i></div>
+<div style="margin-top:10px">
+<div class="line"><span>In your accounts</span><span>₹24,000</span></div>
+<div class="line"><span>Bills before payday</span><span>− ₹10,929</span></div>
+<div class="line"><span>Set aside for goals</span><span>− ₹3,000</span></div>
+</div>
+</div>
+</div>
+<div class="card rv c2" style="background:#E4DDFB">
+<h3>Safe to spend today</h3>
+<p>What's left, shared over the days to payday. Spend less today and tomorrow grows.</p>
+<svg aria-hidden="true" width="72" height="72" viewBox="0 0 52 52" style="margin-top:14px"><circle cx="26" cy="26" r="21" fill="none" stroke="rgba(32,37,27,.15)" stroke-width="7"/><circle cx="26" cy="26" r="21" fill="none" stroke="#20251B" stroke-width="7" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="40" transform="rotate(-90 26 26)" style="animation:loRing 2.4s ease-out infinite alternate"/></svg>
+</div>
+<div class="card rv c3" style="background:#FCE3D3">
+<h3>Share a payment screenshot</h3>
+<p>Share a GPay or PhonePe screenshot to Leftover. It reads it on your phone and saves it, with Undo.</p>
+</div>
+<div class="card rv c4" style="background:#DCEBF7">
+<h3>Can I afford this?</h3>
+<p>Fits in today, a stretch (and how much less each day gets), or waits for payday. Every number it changes, listed.</p>
+</div>
+<div class="card rv c5" style="background:#FBE9B7">
+<h3>Day by day to payday</h3>
+<p>Every bill, EMI and card due on its date, with what's left after it. It ends on the same number as Home.</p>
+</div>
+<div class="card rv c6" style="background:var(--card);color:var(--text)">
+<h3>Bank texts, only if you want</h3>
+<p>Optional: Leftover reads texts from named bank senders, adds clean spends and asks about the rest. Off until you switch it on.</p>
+</div>
+<div class="card rv c7" style="background:#DDF1E6">
+<h3>Budgets, goals, bills and splits</h3>
+<p>One spending budget with pace, goals that warn when they fall behind, a wishlist cooldown, and splits with friends.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section style="padding:56px 0">
+<div class="wrap">
+<div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start;margin-bottom:40px">
+<span class="eyebrow" style="background:#DCEBF7">Take a look</span>
+<h2 class="disp" style="font-size:clamp(36px,5vw,56px);line-height:1.02">Every number shows its maths.</h2>
+</div>
+<div class="gal">
+<figure style="margin-top:36px"><div class="shot"><img class="ml" src="img/app/plan-light.jpg" alt="Plan: ₹9,470 left of a ₹15,000 budget, on pace" width="644" height="1334" loading="lazy"><img class="md" src="img/app/plan-dark.jpg" alt="Plan: ₹9,470 left of a ₹15,000 budget, on pace" width="644" height="1334" loading="lazy"></div><figcaption class="cap">One spending budget</figcaption></figure>
+<figure><div class="shot"><img class="ml" src="img/app/timeline-light.jpg" alt="Until payday: each bill on its date with what's left after it" width="644" height="1334" loading="lazy"><img class="md" src="img/app/timeline-dark.jpg" alt="Until payday: each bill on its date with what's left after it" width="644" height="1334" loading="lazy"></div><figcaption class="cap">Day by day to payday</figcaption></figure>
+<figure style="margin-top:36px"><div class="shot"><img class="ml" src="img/app/detail-light.jpg" alt="An entry read from a screenshot, with how often you pay Zepto" width="644" height="1334" loading="lazy"><img class="md" src="img/app/detail-dark.jpg" alt="An entry read from a screenshot, with how often you pay Zepto" width="644" height="1334" loading="lazy"></div><figcaption class="cap">Read from a screenshot</figcaption></figure>
+<figure style="margin-top:36px"><div class="shot"><img class="ml" src="img/app/insights-light.jpg" alt="Insights: spent, daily average, biggest category and regrets" width="644" height="1334" loading="lazy"><img class="md" src="img/app/insights-dark.jpg" alt="Insights: spent, daily average, biggest category and regrets" width="644" height="1334" loading="lazy"></div><figcaption class="cap">Insights</figcaption></figure>
+<figure><div class="shot"><img class="ml" src="img/app/activity-light.jpg" alt="Activity: every entry by day, with search and filters" width="644" height="1334" loading="lazy"><img class="md" src="img/app/activity-dark.jpg" alt="Activity: every entry by day, with search and filters" width="644" height="1334" loading="lazy"></div><figcaption class="cap">Activity</figcaption></figure>
+<figure style="margin-top:36px"><div class="shot"><img class="ml" src="img/app/add-dark.jpg" alt="Quick add with a number pad and recent categories" width="644" height="1334" loading="lazy"><img class="md" src="img/app/add-dark.jpg" alt="Quick add with a number pad and recent categories" width="644" height="1334" loading="lazy"></div><figcaption class="cap">Add in seconds</figcaption></figure>
+</div>
+</div>
+</section>
+
+<section id="private" style="padding:56px 0">
+<div class="wrap">
+<div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start;margin-bottom:40px">
+<span class="eyebrow" style="background:#D6F478">Privacy</span>
+<h2 class="disp" style="font-size:clamp(36px,5vw,56px);line-height:1.02">Your money stays on your phone.</h2>
+</div>
+<div class="steps">
+<div class="card rv" style="background:#E4DDFB"><div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M3 3l18 18"></path></svg></div><h3 class="disp" style="font-size:28px;margin-bottom:8px">No internet at all</h3><p style="font-size:17px;line-height:1.5">Leftover doesn't even ask for internet access. Nothing is uploaded, ever.</p></div>
+<div class="card rv" style="background:#FCE3D3"><div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></div><h3 class="disp" style="font-size:28px;margin-bottom:8px">No account, no bank login</h3><p style="font-size:17px;line-height:1.5">Add entries yourself, by voice, from a screenshot, or from bank texts if you allow it.</p></div>
+<div class="card rv" style="background:#DDF1E6"><div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="m9 12 2 2 4-4"></path></svg></div><h3 class="disp" style="font-size:28px;margin-bottom:8px">Locked and hidden</h3><p style="font-size:17px;line-height:1.5">App lock or a Leftover PIN, Hide balances everywhere, and backups protected with a passphrase.</p></div>
+</div>
+</div>
+</section>
+
+<section id="download" style="padding:56px 0 72px">
+<div class="wrap">
+<div class="card" style="background:#20251B;color:#F8F8F2;padding:48px 36px;border-radius:36px;box-shadow:6px 8px 0 var(--line);border-color:var(--line)">
+<span aria-hidden="true" style="position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:#D6F478;border:3px solid #000"></span>
+<span aria-hidden="true" style="--r:20deg;position:absolute;right:120px;bottom:-24px;width:64px;height:64px;border-radius:14px;background:#E4DDFB;border:3px solid #000;transform:rotate(20deg);animation:loFloat 4s ease-in-out infinite"></span>
+<span class="eyebrow" id="dl-eyebrow" style="color:#20251B">Latest release v0.8.1</span>
+<h2 class="disp" id="dl-title" style="font-size:clamp(36px,5vw,60px);line-height:1.02;margin-top:18px;text-shadow:3px 4px 0 #000">Get Leftover v0.8.1</h2>
+<p style="font-size:19px;line-height:1.5;margin-top:12px;max-width:600px;color:#E4E7DC">For Android 8 and newer, on ARM phones (almost every phone). Download it, open it, and allow your browser or file manager to install it.</p>
+<div class="dl">
+<a class="dlb" id="dl-apk" href="https://github.com/harshaltiwari-build/leftover/releases/latest"><strong id="dl-apk-name">Leftover.apk</strong><span>The app. Installs over an earlier version and keeps your data.</span></a>
+<a class="dlb" href="https://github.com/harshaltiwari-build/leftover/releases"><strong>All releases</strong><span>What's new in each version, and older builds.</span></a>
+</div>
+</div>
+</div>
+</section>
+
+<section id="faq" style="padding:0 0 96px">
+<div class="wrap" style="max-width:860px">
+<div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start;margin-bottom:36px">
+<span class="eyebrow" style="background:#FBE9B7">FAQ</span>
+<h2 class="disp" style="font-size:clamp(36px,5vw,56px);line-height:1.02">Questions, answered.</h2>
+</div>
+<details open><summary>Is Leftover free?</summary><p>Yes. Free, no ads, and open source under the GPL-3.0 licence.</p></details>
+<details><summary>Does it need the internet or my bank login?</summary><p>No. Leftover has no internet permission and no account. Everything stays in a database on your phone.</p></details>
+<details><summary>Android says "App was denied access" for SMS. Why?</summary><p>Android 13 and newer block SMS for apps installed from a file instead of the Play Store. To allow it once:</p><ol><li>Open Settings → Apps → Leftover.</li><li>Tap ⋮ at the top right → Allow restricted settings, and confirm.</li><li>In Leftover, open Settings → Automatic tracking and switch on bank texts.</li></ol></details>
+<details><summary>Will an update keep my data?</summary><p>Yes. Install the new APK over the old one and everything stays. Uninstalling first deletes the app's data, so make a backup in Settings → Backup before you ever uninstall.</p></details>
+<details><summary>Is there an iPhone version?</summary><p>Not yet. Leftover is Android only for now.</p></details>
+<details><summary>Who makes Leftover?</summary><p>Leftover is designed and built by Harshal Tiwari. Screenshots are read on the phone with Tesseract (Apache-2.0).</p></details>
+</div>
+</section>
+
+<footer class="foot" style="padding:48px 0">
+<div class="wrap" style="display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+<span class="disp" style="font-size:34px;color:#D6F478">Leftover</span>
+<nav aria-label="Footer" style="display:flex;gap:22px;flex-wrap:wrap;font-size:16px">
+<a href="https://github.com/harshaltiwari-build/leftover">GitHub</a>
+<a href="https://github.com/harshaltiwari-build/leftover/releases">Releases</a>
+<a href="https://github.com/harshaltiwari-build/leftover/issues">Issues</a>
+<a href="https://github.com/harshaltiwari-build/leftover/blob/main/LICENSE">License</a>
+</nav>
+</div>
+<p style="font-size:15px;line-height:1.6;max-width:720px;color:#D5D8CC">Designed and built by <a href="https://github.com/harshaltiwari-build">Harshal Tiwari</a>. Screenshots show made-up demo data.</p>
+</div>
+</footer>
+
+</div>
+<script>
+(function(){
+var root=document.documentElement,key="leftover-theme";
+var saved=null;try{saved=localStorage.getItem(key);}catch(e){}
+var dark=saved?saved==="dark":(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+root.setAttribute("data-theme",dark?"dark":"light");
+document.getElementById("theme").addEventListener("click",function(){
+  var next=root.getAttribute("data-theme")==="dark"?"light":"dark";
+  root.setAttribute("data-theme",next);try{localStorage.setItem(key,next);}catch(e){}
+});
+var io="IntersectionObserver" in window?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}});},{threshold:.12}):null;
+document.querySelectorAll(".rv").forEach(function(el){if(io)io.observe(el);else el.classList.add("in");});
+fetch("https://api.github.com/repos/harshaltiwari-build/leftover/releases/latest").then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(rel){
+  var tag=rel.tag_name||"";
+  if(tag){
+    document.getElementById("dl-eyebrow").textContent="Latest release "+tag;
+    document.getElementById("dl-title").textContent="Get Leftover "+tag;
+    document.getElementById("hero-ver").textContent="Download "+tag;
+  }
+  var apk=(rel.assets||[]).filter(function(a){return /\.apk$/i.test(a.name);})[0];
+  if(apk){
+    document.getElementById("dl-apk").href=apk.browser_download_url;
+    document.getElementById("dl-apk-name").textContent=apk.name;
+  }
+}).catch(function(){});
+})();
+</script>
+</body>
+</html>

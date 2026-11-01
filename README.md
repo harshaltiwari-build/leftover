@@ -11,6 +11,8 @@ Leftover is a free, open-source Android money app for students, first-job earner
 - **Trustworthy accounting.** Transfers between your accounts and credit-card repayments are never counted as spending; refunds reduce spending; money friends owe you isn't counted until it arrives.
 - **Every number can show its maths.** Tap **How?** on Home to see exactly where Left to spend comes from.
 
+**Website:** [harshaltiwari-build.github.io/leftover](https://harshaltiwari-build.github.io/leftover/)
+
 > **Status: early (v0.8.1).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
 
 ## What's in v0.8
