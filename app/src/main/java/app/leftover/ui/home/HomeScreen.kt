@@ -95,6 +95,7 @@ fun HomeScreen(
     onOpenBackup: () -> Unit,
     onAddBalance: () -> Unit,
     onOpenProfile: () -> Unit = onOpenSettings,
+    onOpenTimeline: () -> Unit = {},
     onOpenSplit: () -> Unit = {},
     onOpenPlan: () -> Unit = onOpenBills,
 ) {
@@ -121,7 +122,7 @@ fun HomeScreen(
             val n = snapshot.pendingSms.size
             Banner("$n bank ${if (n == 1) "text needs" else "texts need"} a look", c.lavender, c.lavenderInk, trailing = "Review", onClick = onOpenReview)
         }
-        HeroCard(snapshot, left, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown)
+        HeroCard(snapshot, left, hidden, showHow, onToggleHow = { showHow = !showHow }, onOpenBreakdown = onOpenBreakdown, onOpenTimeline = onOpenTimeline)
         if (!noBalance) SafeTodayCard(safe, hidden, onOpenAfford)
         QuickActions(onOpenVoice, onOpenAfford, onOpenSplit, onOpenGoals)
         val warning = remember(ledger) { PaceWarning.worst(ledger) }
@@ -157,7 +158,7 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: 
 }
 
 @Composable
-private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit) {
+private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, showHow: Boolean, onToggleHow: () -> Unit, onOpenBreakdown: () -> Unit, onOpenTimeline: () -> Unit) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val cycle = snapshot.cycle
@@ -209,6 +210,10 @@ private fun HeroCard(snapshot: Snapshot, left: LeftToSpend, hidden: Boolean, sho
                 BreakdownLine("Card dues", left.cardDuesTotal, true, hidden)
                 BreakdownLine("Set aside for goals", left.goalsTotal, true, hidden)
                 RunwayPill(ledger.runway)
+                Text(
+                    "Day by day until payday →", style = Type.captionBold, color = c.heroNumber,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenTimeline).padding(vertical = 8.dp),
+                )
                 Text(
                     "See full breakdown →", style = Type.captionBold, color = c.heroNumber,
                     modifier = Modifier.clickable(role = Role.Button, onClick = onOpenBreakdown).padding(vertical = 8.dp),

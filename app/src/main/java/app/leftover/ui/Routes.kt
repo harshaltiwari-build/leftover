@@ -11,6 +11,7 @@ object Routes {
 
     const val HOME = "home"
     const val LEFT = "home/left"
+    const val TIMELINE = "home/timeline"
     const val ADD = "add"
     const val ADD_PATTERN = "add?kind={kind}&draft={draft}"
     fun add(kind: String) = "add?kind=$kind"

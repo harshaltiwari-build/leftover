@@ -173,6 +173,7 @@ fun AppNav(viewModel: AppViewModel) {
                     })
                 }
 
+                composable(Routes.TIMELINE) { app.leftover.ui.home.TimelineScreen(data, onBack = { nav.popBackStack() }) }
                 composable(Routes.HOME) {
                     HomeScreen(
                         snapshot = data,
@@ -189,6 +190,7 @@ fun AppNav(viewModel: AppViewModel) {
                         onOpenReview = { nav.navigate(Routes.REVIEW) },
                         onOpenBackup = { nav.navigate(Routes.BACKUP) },
                         onAddBalance = { nav.navigate(Routes.addAccount()) },
+                        onOpenTimeline = { nav.navigate(Routes.TIMELINE) },
                         onOpenProfile = { nav.navigate(Routes.PROFILE) },
                         onOpenSplit = { nav.navigate(Routes.SPLIT) },
                         onOpenPlan = { nav.switchTab(Routes.PLAN) },
