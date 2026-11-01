@@ -246,7 +246,7 @@ fun AppNav(viewModel: AppViewModel) {
                         onDelete = { tx -> viewModel.deleteWithUndo(tx, app.leftover.domain.TagTotals.tagsOf(tx.id, data.txTags)) }, onRecategorize = viewModel::recategorize)
                 }
                 composable(Routes.TX, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
-                    TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags, onAttachReceipt = viewModel::attachReceipt)
+                    TransactionDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateTransaction, onDelete = viewModel::deleteTransaction, onSetTags = viewModel::setTransactionTags, onAttachReceipt = viewModel::attachReceipt, onOpenOther = { nav.navigate(Routes.tx(it)) })
                 }
                 composable(Routes.ACCOUNTS) { AccountsScreen(data, onBack = { nav.popBackStack() }, onAdd = { nav.navigate(Routes.addAccount()) }, onAddCash = { nav.navigate(Routes.addAccount("CASH")) }, onOpenCard = { nav.navigate(Routes.card(it)) }, onOpenCash = { nav.navigate(Routes.cash(it)) }, onOpenGoals = { nav.switchTab(Routes.GOALS) }, onEdit = { nav.navigate(Routes.editAccount(it)) }) }
                 composable(Routes.EDIT_ACCOUNT, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
@@ -286,7 +286,7 @@ fun AppNav(viewModel: AppViewModel) {
                 }
                 composable(Routes.EDIT_LIMITS) { EditLimitsScreen(data, onClose = { nav.popBackStack() }, onSave = viewModel::updateCategories) }
                 composable(Routes.CATEGORIES) { CategoriesScreen(data, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateCategory, onAdd = viewModel::addCategory, onMerge = viewModel::mergeCategory) }
-                composable(Routes.GOALS) { GoalsScreen(data, onSelectTab = { nav.switchTab(it) }, onOpenGoal = { nav.navigate(Routes.goal(it)) }, onAddGoal = { nav.navigate(Routes.ADD_GOAL) }) }
+                composable(Routes.GOALS) { GoalsScreen(data, onSelectTab = { nav.switchTab(it) }, onOpenGoal = { nav.navigate(Routes.goal(it)) }, onAddGoal = { nav.navigate(Routes.ADD_GOAL) }, onUpdateGoal = viewModel::updateGoal) }
                 composable(Routes.GOAL, arguments = listOf(navArgument("id") { type = NavType.LongType })) { backStack ->
                     GoalDetailScreen(data, backStack.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() }, onUpdate = viewModel::updateGoal, onMoveMoney = viewModel::moveGoalMoney)
                 }

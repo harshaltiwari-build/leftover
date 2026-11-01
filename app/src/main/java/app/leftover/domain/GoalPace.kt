@@ -47,3 +47,28 @@ object GoalPace {
         return GoalProgress(saved, target, perCycle, finish, if (behind) GoalStatus.BEHIND else GoalStatus.ON_TRACK, if (behind) (neededPerCycle - perCycle).coerceAtLeast(0) else 0)
     }
 }
+
+/** A goal that won't reach its date at the current saving, with the two ways to catch up. */
+data class BehindGoal(
+    val goal: app.leftover.data.db.GoalEntity,
+    val progress: GoalProgress,
+) {
+    /** Setting aside this much each payday reaches the target by its date. */
+    val raiseTo: Paise get() = goal.perCycle + progress.shortfallPerCycle
+
+    /** Whether setting aside [raiseTo] each payday fits in what usually comes in (always, when that isn't known). */
+    fun canRaise(usualIncome: Paise): Boolean = usualIncome <= 0 || raiseTo <= usualIncome
+
+    /** When it would be done at the current saving; null when nothing is being set aside. */
+    val newDate: LocalDate? get() = progress.finishDate
+}
+
+object GoalsBehind {
+    /** Dated, unfinished goals that won't make it, biggest gap first. */
+    fun of(ledger: Ledger): List<BehindGoal> = ledger.goals.filter { !it.archived && it.targetEpochDay != null }
+        .map { goal ->
+            BehindGoal(goal, GoalPace.progress(ledger.goalSaved(goal.id), goal.target, goal.perCycle, goal.targetEpochDay?.let(LocalDate::ofEpochDay), ledger.cycle.nextPayday))
+        }
+        .filter { it.progress.status == GoalStatus.BEHIND }
+        .sortedByDescending { it.progress.shortfallPerCycle }
+}

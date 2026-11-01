@@ -94,7 +94,7 @@ private fun statusLine(progress: GoalProgress, hidden: Boolean): Pair<String, Bo
 private fun coverColor(key: String, dark: Boolean) = CategoryPalette.of(key, dark).tile
 
 @Composable
-fun GoalsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onOpenGoal: (Long) -> Unit, onAddGoal: () -> Unit) {
+fun GoalsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onOpenGoal: (Long) -> Unit, onAddGoal: () -> Unit, onUpdateGoal: (GoalEntity) -> Unit = {}) {
     val c = Leftover.colors
     val hidden = snapshot.settings.hideBalances
     val ledger = snapshot.ledger
@@ -102,6 +102,7 @@ fun GoalsScreen(snapshot: Snapshot, onSelectTab: (String) -> Unit, onOpenGoal: (
     val reserved = ledger.leftToSpend.goalsTotal
 
     PlanScaffold(current = Routes.GOALS, onSelectTab = onSelectTab) {
+        app.leftover.domain.GoalsBehind.of(ledger).firstOrNull()?.let { behind -> BehindStrip(behind, hidden, behind.canRaise(snapshot.settings.usualIncome), onUpdateGoal) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             Column {
                 Text("Saved across ${snapshot.goals.size} ${if (snapshot.goals.size == 1) "goal" else "goals"}", style = Type.caption, color = c.muted)
@@ -412,5 +413,35 @@ data class FestivalFund(val name: String, val cover: String, val target: Long, v
             FestivalFund("Wedding season", "lavender", 20000L, 4),
             FestivalFund("Birthday gifts", "sky", 5000L, 2),
         )
+    }
+}
+
+/**
+ * The goal furthest behind its date, and two ways to catch up: set aside more each payday, or move the date to when
+ * the current saving gets there. One tap each.
+ */
+@Composable
+private fun BehindStrip(behind: app.leftover.domain.BehindGoal, hidden: Boolean, canRaise: Boolean, onUpdateGoal: (GoalEntity) -> Unit) {
+    val c = Leftover.colors
+    val goal = behind.goal
+    val monthYear = java.time.format.DateTimeFormatter.ofPattern("MMM yyyy", java.util.Locale.ENGLISH)
+    val target = goal.targetEpochDay?.let(LocalDate::ofEpochDay)
+    Column(Modifier.fillMaxWidth().clip(Radius.lg).background(c.emberBg).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("${goal.name} is behind", style = Type.bodyExtra, color = c.emberText)
+        Text(
+            if (hidden) "At the current saving it won't reach its date${target?.let { " of ${it.format(monthYear)}" }.orEmpty()}."
+            else "${Money.format(behind.progress.shortfallPerCycle)} more each payday gets it there by ${target?.format(monthYear) ?: "its date"}" +
+                (behind.newDate?.let { ". At ${Money.format(goal.perCycle)} it lands in ${it.format(monthYear)}." } ?: "."),
+            style = Type.caption, color = c.emberText,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (canRaise) LButton(
+                if (hidden) "Save enough each payday" else "Save ${Money.format(behind.raiseTo)} a payday", { onUpdateGoal(goal.copy(perCycle = behind.raiseTo)) },
+                modifier = Modifier.weight(1f), kind = ButtonKind.Primary, height = 44.dp,
+            )
+            behind.newDate?.let { date ->
+                LButton("Move to ${date.format(monthYear)}", { onUpdateGoal(goal.copy(targetEpochDay = date.toEpochDay())) }, modifier = Modifier.weight(1f), kind = ButtonKind.Outline, height = 44.dp)
+            }
+        }
     }
 }

@@ -88,7 +88,10 @@ private fun explain(type: TxType) = when (type) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, onUpdate: (TransactionEntity) -> Unit, onDelete: (Long) -> Unit, onSetTags: (Long, Set<Long>) -> Unit, onAttachReceipt: (TransactionEntity, String?) -> Unit) {
+fun TransactionDetailScreen(
+    snapshot: Snapshot, id: Long, onBack: () -> Unit, onUpdate: (TransactionEntity) -> Unit, onDelete: (Long) -> Unit, onSetTags: (Long, Set<Long>) -> Unit,
+    onAttachReceipt: (TransactionEntity, String?) -> Unit, onOpenOther: (Long) -> Unit = {},
+) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
     val tx = snapshot.transactions.firstOrNull { it.id == id }
@@ -122,6 +125,24 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
                 Text(UiFormat.title(tx, ledger), style = Type.bodyStrong, color = c.ink)
                 Amount(UiFormat.signed(tx), hidden, Type.display48, color = c.ink, signed = tx.type != TxType.TRANSFER)
                 Text("${UiFormat.dayHeader(UiFormat.date(tx), snapshot.today).substringAfter(" · ")} · ${UiFormat.clock(tx.occurredAt)} · ${account?.name ?: "—"}", style = Type.caption, color = c.muted, textAlign = TextAlign.Center)
+                if (tx.source == app.leftover.data.db.TxSource.SCAN) {
+                    Text("From a screenshot", style = Type.smallBold, color = c.lavenderInk, modifier = Modifier.clip(Radius.pill).background(c.lavender).padding(horizontal = 10.dp, vertical = 5.dp))
+                }
+            }
+
+            val read = remember(tx) { app.leftover.domain.MerchantStats.readFields(tx) }
+            if (read.isNotEmpty()) {
+                Card(padding = PaddingValues(16.dp)) {
+                    Text("Read from your screenshot", style = Type.bodyExtra, color = c.ink)
+                    Text("${UiFormat.count(read.size, "detail")} found. Read on this phone, never uploaded.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 2.dp, bottom = 6.dp))
+                    read.forEachIndexed { i, (label, value) ->
+                        if (i > 0) Divider()
+                        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(label, style = Type.caption, color = c.muted)
+                            Text(if (hidden && label == "Amount") Money.HIDDEN else value, style = Type.captionBold, color = c.ink, maxLines = 1)
+                        }
+                    }
+                }
             }
 
             if (tx.type in editableTypes && splitExpense == null && settlement == null) {
@@ -150,6 +171,38 @@ fun TransactionDetailScreen(snapshot: Snapshot, id: Long, onBack: () -> Unit, on
                     Spacer(Modifier.height(10.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TxFeeling.entries.forEach { f -> Chip(f.label, tx.feeling == f, { onUpdate(tx.copy(feeling = if (tx.feeling == f) null else f)) }, role = Role.RadioButton) }
+                    }
+                }
+            }
+
+            if (tx.type == TxType.EXPENSE) {
+                val stats = remember(tx, ledger) { app.leftover.domain.MerchantStats.of(tx, ledger) }
+                if (stats != null) {
+                    Card(padding = PaddingValues(16.dp)) {
+                        Text("You and ${stats.name}", style = Type.bodyExtra, color = c.ink)
+                        Spacer(Modifier.height(10.dp))
+                        Row(Modifier.fillMaxWidth()) {
+                            StatCell(stats.count.toString(), "times this year", Modifier.weight(1f))
+                            StatCell(Money.display(stats.total, hidden), "in total", Modifier.weight(1f))
+                            StatCell(Money.display(stats.usual, hidden), "usual amount", Modifier.weight(1f))
+                        }
+                    }
+                }
+                val similar = remember(tx, ledger) { app.leftover.domain.MerchantStats.similar(tx, ledger) }
+                if (similar.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Similar spends", style = Type.bodyExtra, color = c.ink, modifier = Modifier.padding(horizontal = 4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            similar.forEach { other ->
+                                Card(padding = PaddingValues(12.dp), modifier = Modifier.weight(1f).clickable(role = Role.Button) { onOpenOther(other.id) }) {
+                                    Text(UiFormat.title(other, ledger), style = Type.captionBold, color = c.ink, maxLines = 1)
+                                    Text(UiFormat.shortDay(UiFormat.date(other), snapshot.today), style = Type.small, color = c.muted, maxLines = 1)
+                                    Spacer(Modifier.height(8.dp))
+                                    Amount(other.amount, hidden, Type.bodyExtra, color = c.ink)
+                                }
+                            }
+                            repeat(3 - similar.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
@@ -305,5 +358,14 @@ private fun DetailRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = Type.caption, color = c.muted, modifier = Modifier.width(90.dp))
         Text(value, style = Type.bodyStrong, color = c.ink, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
+    val c = Leftover.colors
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = Type.title, color = c.ink, maxLines = 1)
+        Text(label, style = Type.small, color = c.muted, textAlign = TextAlign.Center)
     }
 }
