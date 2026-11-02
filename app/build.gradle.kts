@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+// The release key lives outside the project (~/.leftover-signing) and is never committed. A project-level
+// keystore.properties (also git-ignored) wins if present, so CI or another machine can supply its own.
+val signingProps = Properties().apply {
+    listOf(rootProject.file("keystore.properties"), File(System.getProperty("user.home"), ".leftover-signing/keystore.properties"))
+        .firstOrNull { it.isFile }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -25,6 +34,17 @@ android {
     // On-phone tests run against "qa": a debug build under its own app id, so they never touch the real app's data.
     testBuildType = "qa"
 
+    signingConfigs {
+        if (signingProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(signingProps.getProperty("storeFile"))
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         create("qa") {
             initWith(getByName("debug"))
@@ -36,6 +56,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Without the key (a fresh clone) the release build is left unsigned rather than silently debug-signed.
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 

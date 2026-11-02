@@ -39,3 +39,20 @@ Changing the database? Bump the Room `version`, add a `Migration`, and commit th
 ## Reporting problems
 
 Open an issue with your Android version, what you expected and what happened. Please **don't paste real financial data** into issues; describe the numbers or use made-up ones.
+
+## Release signing
+
+Releases are signed with a private key that is **not** in this repository. The build looks for `keystore.properties` in the project folder, then in `~/.leftover-signing/` (both are git-ignored):
+
+```
+storeFile=/path/to/leftover-release.keystore
+storePassword=...
+keyAlias=leftover
+keyPassword=...
+```
+
+Without it, `./gradlew :app:assembleRelease` produces an unsigned APK and everything else (debug builds, tests) works as before. Keep a backup of the key: an app signed with a different key can't update an installed one.
+
+The release key's SHA-256 certificate fingerprint, to check a download with `apksigner verify --print-certs`:
+
+`C7:A8:75:78:36:F9:5E:21:21:78:9C:D6:D2:78:A1:F4:B2:EA:C1:AF:65:8E:8D:EE:7F:7D:68:B7:7B:51:46:91`

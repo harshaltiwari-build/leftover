@@ -107,4 +107,59 @@ class PaymentScreenshotTest {
     @Test fun `dates in the future are ignored`() {
         assertNull(PaymentScreenshotParser.date("25 Dec 2026", today))
     }
+
+    // The layout of a real Google Pay receipt, with made-up people and numbers: avatar letter, masked phone, a "Pay again"
+    // button, a timeline that repeats the amount and time, and the sender's own name and bank under "From".
+    @Test fun `a google pay receipt with a timeline`() {
+        val text = """
+            R
+            To Rohan Mehta
+            +91 ••••• •1234
+            ₹1,000
+            Pay again
+            Completed
+            31 Oct 2026, 10:32 pm
+            Example Small Finance Bank 1111
+            Payment started
+            31 Oct 2026, 10:32 pm
+            ₹1,000 was debited
+            10:32 pm
+            ₹1,000 sent to Rohan Mehta
+            10:32 pm
+            Payment completed
+            10:32 pm
+            UPI transaction ID
+            123456789012
+            To: MEHTA ROHAN S
+            ••••11-1@okexample on Google Pay
+            From: ASHA SHARMA (Example Small Finance Bank)
+            ••••2-22@okexample on Google Pay
+            Google transaction ID
+            ABCdEfGhIjKlMn
+            POWERED BY
+            UPI
+            Having issues?
+            Share
+            Google Pay
+            Split expense
+        """.trimIndent()
+        val p = PaymentScreenshotParser.parse(text, LocalDate.of(2026, 11, 2))
+        assertEquals(rupees(1_000), p.amount)
+        assertEquals("Rohan Mehta", p.payee)
+        assertEquals(LocalDate.of(2026, 10, 31), p.date)
+        assertEquals(LocalTime.of(22, 32), p.time)
+        assertEquals(ScreenshotStatus.SUCCESS, p.status)
+        assertEquals("123456789012", p.upiRef)
+        assertEquals("Google Pay", p.app)
+        assertFalse(p.received)
+    }
+
+    // The same layout when recognition garbles the rupee sign, a common failure on this screen.
+    @Test fun `the same layout with a misread rupee sign`() {
+        val text = "R\nTo Rohan Mehta\n+91 ••••• •1234\n21,000\nPay again\nCompleted\n31 Oct 2026, 10:32 pm\nUPI transaction ID\n123456789012\nGoogle Pay"
+        val p = PaymentScreenshotParser.parse(text, LocalDate.of(2026, 11, 2))
+        assertEquals("Rohan Mehta", p.payee)
+        assertEquals(ScreenshotStatus.SUCCESS, p.status)
+        assertEquals("123456789012", p.upiRef)
+    }
 }
