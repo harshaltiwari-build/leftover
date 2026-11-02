@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Voice entry. Asked only when you tap the mic; typing an entry works without it. -->
+    <!-- The only reason Leftover goes online: the update check you start (or switch on), and the file it downloads. Nothing about you is sent. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets Leftover hand a verified update to Android's installer; you still confirm every install. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

@@ -29,7 +29,7 @@ data class AskAnswer(
 
 /**
  * "Ask about your money", worked out on the phone from fixed question shapes rather than a language model: Leftover
- * has no internet permission. It understands amounts spent on a category or at a place over a period, what changed,
+ * works from your entries on the phone, with no online service. It understands amounts spent on a category or at a place over a period, what changed,
  * bills coming up, goals, the biggest spends, what's left, and regrets. Anything else gets a list of what to try.
  */
 object Ask {

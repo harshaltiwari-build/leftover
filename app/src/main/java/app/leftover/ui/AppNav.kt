@@ -207,6 +207,8 @@ fun AppNav(viewModel: AppViewModel) {
                         onAddBalance = { nav.navigate(Routes.addAccount()) },
                         onOpenRecap = { nav.navigate(Routes.RECAP) },
                         onOpenTimeline = { nav.navigate(Routes.TIMELINE) },
+                        updateVersion = (viewModel.updateState.collectAsState().value as? app.leftover.data.UpdateState.Available)?.info?.version,
+                        onOpenUpdate = { nav.navigate(Routes.ABOUT) },
                         onOpenProfile = { nav.navigate(Routes.PROFILE) },
                         onOpenSplit = { nav.navigate(Routes.SPLIT) },
                         onOpenPlan = { nav.switchTab(Routes.PLAN) },
@@ -475,7 +477,15 @@ fun AppNav(viewModel: AppViewModel) {
                 composable(Routes.RHYTHM) { MoneyRhythmScreen(data, onBack = { nav.popBackStack() }, onSetPayday = viewModel::setPaydayDay, onSetIncome = viewModel::setIncome, onSetIrregular = viewModel::setIrregularIncome) }
                 composable(Routes.APPEARANCE) { AppearanceScreen(data, onBack = { nav.popBackStack() }, onSetTheme = viewModel::setThemeMode, onSetVoiceLanguage = viewModel::setVoiceLanguage, onSetPureBlack = viewModel::setPureBlack, onSetAccent = viewModel::setAccent, onSetFont = viewModel::setFont) }
                 composable(Routes.PRIVACY) { PrivacyScreen(onBack = { nav.popBackStack() }) }
-                composable(Routes.ABOUT) { AboutScreen(onBack = { nav.popBackStack() }) }
+                composable(Routes.ABOUT) {
+                    val update by viewModel.updateState.collectAsState()
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    AboutScreen(
+                        onBack = { nav.popBackStack() }, update = update, autoCheck = data.settings.autoCheckUpdates,
+                        onCheck = viewModel::checkForUpdates, onDownload = viewModel::downloadUpdate,
+                        onInstall = { viewModel.installUpdate(context) }, onAutoCheck = viewModel::setAutoCheckUpdates,
+                    )
+                }
                 composable(Routes.DELETE) {
                     DeleteDataScreen(data, onBack = { nav.popBackStack() }, onBackup = { nav.navigate(Routes.BACKUP) }, onDelete = { viewModel.deleteEverything { nav.navigate(Routes.LAUNCH) { popUpTo(0) } } })
                 }

@@ -239,12 +239,14 @@ fun PrivacyScreen(onBack: () -> Unit) {
         Card(color = c.lavender, bordered = false, padding = PaddingValues(16.dp)) {
             Text("Everything stays on this phone", style = Type.bodyExtra, color = c.lavenderInk)
             Text(
-                "Leftover has no accounts, no servers and no internet access at all. You can take any permission back in Android settings.",
+                "Leftover has no accounts and no servers. Your entries never leave the phone. It goes online for one thing only: the update check you start. You can take any permission back in Android settings.",
                 style = Type.caption, color = c.lavenderMuted, modifier = Modifier.padding(top = 6.dp),
             )
         }
         Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
-            Perm("Internet", "None. Leftover can't send anything anywhere.", "None", true)
+            Perm("Internet", "Only for the update check you start (or switch on), and the update file it downloads. Nothing about you or your money is sent.", "Updates only", true)
+            Divider()
+            Perm("Install apps", "Lets Leftover hand a downloaded update to Android's installer. You confirm every install.", "Updates only", true)
             Divider()
             Perm("Microphone", "Only while you tap Voice, to hear a spend you say aloud.", if (mic) "Allowed" else "Not allowed", mic)
             Divider()
@@ -275,16 +277,22 @@ private fun Perm(title: String, detail: String, status: String, good: Boolean) {
 }
 
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(
+    onBack: () -> Unit,
+    update: app.leftover.data.UpdateState = app.leftover.data.UpdateState.Idle,
+    autoCheck: Boolean = false,
+    onCheck: () -> Unit = {}, onDownload: () -> Unit = {}, onInstall: () -> Unit = {}, onAutoCheck: (Boolean) -> Unit = {},
+) {
     val c = Leftover.colors
     SubPage("About Leftover", onBack) {
         Card(padding = PaddingValues(16.dp)) {
             Text("Leftover ${BuildConfig.VERSION_NAME}", style = Type.title, color = c.ink)
             Text("A money app for knowing what's safe to spend. Built for people who earn once a month and want it to last.", style = Type.caption, color = c.muted, modifier = Modifier.padding(top = 6.dp))
         }
+        UpdateCard(update, autoCheck, onCheck, onDownload, onInstall, onAutoCheck)
         val context = androidx.compose.ui.platform.LocalContext.current
         Card(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
-            // Opens in the browser: Leftover itself still never goes online.
+            // Opens in your browser, not inside Leftover.
             About("Website", "$WEBSITE · opens in your browser") {
                 runCatching {
                     context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://$WEBSITE/")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -338,5 +346,63 @@ fun DeleteDataScreen(snapshot: Snapshot, onBack: () -> Unit, onBackup: () -> Uni
             ToggleRow("I understand this can't be undone", null, understood, { understood = it })
         }
         LButton("Delete everything", onDelete, enabled = understood, kind = ButtonKind.Outline, height = 48.dp)
+    }
+}
+
+/**
+ * Updates, only when asked: a tap checks GitHub, shows what's new, downloads the file, checks it, and hands it to
+ * Android's installer, which asks for your confirmation. Nothing about you or your money is ever sent.
+ */
+@Composable
+private fun UpdateCard(
+    update: app.leftover.data.UpdateState, autoCheck: Boolean,
+    onCheck: () -> Unit, onDownload: () -> Unit, onInstall: () -> Unit, onAutoCheck: (Boolean) -> Unit,
+) {
+    val c = Leftover.colors
+    Card(padding = PaddingValues(16.dp)) {
+        Text("Updates", style = Type.bodyExtra, color = c.ink)
+        Spacer(Modifier.height(8.dp))
+        when (update) {
+            is app.leftover.data.UpdateState.Idle -> {
+                Text("Leftover only goes online when you ask. Checking asks github.com for the newest version and sends nothing about you or your money.", style = Type.caption, color = c.muted)
+                Spacer(Modifier.height(12.dp))
+                LButton("Check for updates", onCheck, height = 48.dp)
+            }
+            is app.leftover.data.UpdateState.Checking -> Text("Checking for updates…", style = Type.bodyStrong, color = c.ink)
+            is app.leftover.data.UpdateState.UpToDate -> {
+                Text("You have the latest version", style = Type.bodyStrong, color = c.ink)
+                Spacer(Modifier.height(12.dp))
+                LButton("Check for updates", onCheck, kind = app.leftover.ui.components.ButtonKind.Outline, height = 48.dp)
+            }
+            is app.leftover.data.UpdateState.Available -> {
+                Text("Leftover ${update.info.version} is available", style = Type.bodyStrong, color = c.ink)
+                if (update.info.notes.isNotBlank()) Text(update.info.notes, style = Type.caption, color = c.muted, modifier = Modifier.padding(top = 6.dp))
+                Text("Download size ${"%.1f".format(update.info.sizeBytes / 1_048_576.0)} MB", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 6.dp))
+                Spacer(Modifier.height(12.dp))
+                LButton("Download and install", onDownload, height = 48.dp)
+            }
+            is app.leftover.data.UpdateState.Downloading -> {
+                val share = if (update.total > 0) (update.done.toFloat() / update.total).coerceIn(0f, 1f) else 0f
+                Text("Downloading Leftover ${update.info.version}… ${(share * 100).toInt()}%", style = Type.bodyStrong, color = c.ink)
+                Spacer(Modifier.height(10.dp))
+                app.leftover.ui.components.ProgressBar(share)
+            }
+            is app.leftover.data.UpdateState.Ready -> {
+                Text("Ready to install", style = Type.bodyStrong, color = c.ink)
+                Text("Leftover ${update.info.version} was downloaded and checked. Android will ask you to confirm the install; your data stays.", style = Type.caption, color = c.muted, modifier = Modifier.padding(top = 6.dp))
+                Spacer(Modifier.height(12.dp))
+                LButton("Install now", onInstall, height = 48.dp)
+            }
+            is app.leftover.data.UpdateState.Failed -> {
+                Text(update.message, style = Type.caption, color = c.emberText, modifier = Modifier.fillMaxWidth().clip(Radius.md).background(c.emberBg).padding(12.dp))
+                Spacer(Modifier.height(12.dp))
+                LButton("Try again", if (update.canRetryDownload) onDownload else onCheck, height = 48.dp)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        ToggleRow(
+            "Check automatically once a day", "Off by default. When on, Leftover asks GitHub once a day and shows a note on Home if there's a new version.",
+            autoCheck, onAutoCheck,
+        )
     }
 }

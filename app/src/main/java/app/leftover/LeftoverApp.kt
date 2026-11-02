@@ -27,6 +27,12 @@ open class LeftoverApp : Application() {
     val repository by lazy { LeftoverRepository(database, settings) }
     val ingestor by lazy { SmsIngestor(repository, SmsNotifier(this)) }
 
+    /** Where updates are looked for. Replaceable so tests never touch the network. */
+    var updateSource: app.leftover.data.UpdateSource = app.leftover.data.HttpUpdateSource()
+
+    /** Checks a downloaded update is Leftover, newer and signed by the same key. Returns a problem, or null when fine. */
+    var updateVerify: (java.io.File, app.leftover.domain.ReleaseInfo) -> String? = { file, info -> app.leftover.data.UpdateVerifier.check(this, file, info) }
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @OptIn(FlowPreview::class)

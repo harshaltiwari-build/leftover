@@ -97,6 +97,9 @@ fun HomeScreen(
     onOpenProfile: () -> Unit = onOpenSettings,
     onOpenTimeline: () -> Unit = {},
     onOpenRecap: () -> Unit = {},
+    /** A newer version found by the optional daily check, shown as a note at the top; null when there isn't one. */
+    updateVersion: String? = null,
+    onOpenUpdate: () -> Unit = {},
     onOpenSplit: () -> Unit = {},
     onOpenPlan: () -> Unit = onOpenBills,
 ) {
@@ -112,6 +115,9 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Header(snapshot, onToggleHide, onOpenProfile, onOpenBills)
+        if (updateVersion != null) {
+            Banner("Leftover $updateVersion is available", c.lime, c.onLime, trailing = "Update", onClick = onOpenUpdate)
+        }
         if (snapshot.settings.lastBackupError != null) {
             Banner("Couldn't back up your data", c.emberBg, c.emberText, trailing = "Details", onClick = onOpenBackup)
         }

@@ -1,6 +1,11 @@
 package app.leftover.ui
 
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filterNotNull
+import app.leftover.BuildConfig
+import app.leftover.data.UpdateInstaller
+import app.leftover.data.UpdateManager
+import app.leftover.data.UpdateState
 
 import kotlinx.coroutines.sync.withLock
 
@@ -218,6 +223,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setAutoSaveScreenshots(value: Boolean) = run { settings.setAutoSaveScreenshots(value) }
+
+    // Updates: only ever on a tap, or the optional once-a-day check.
+    val updates = UpdateManager(
+        source = { app.updateSource }, installedVersion = BuildConfig.VERSION_NAME, dir = java.io.File(app.cacheDir, "updates"),
+        verify = { file, info -> app.updateVerify(file, info) }, scope = viewModelScope,
+    )
+    val updateState: StateFlow<UpdateState> = updates.state
+
+    fun checkForUpdates() = updates.check()
+    fun downloadUpdate() = updates.download()
+    fun setAutoCheckUpdates(value: Boolean) = run { settings.setAutoCheckUpdates(value) }
+
+    /** Hands the verified file to Android's installer (or first to the screen that allows Leftover to install apps). */
+    fun installUpdate(context: android.content.Context) {
+        val ready = updates.state.value as? UpdateState.Ready ?: return
+        if (!UpdateInstaller.start(context, ready.file)) {
+            showToast(Toast("Allow Leftover to install apps", "Switch it on, come back, and tap Install now again."))
+        }
+    }
+
+    private fun checkForUpdatesIfDue() = viewModelScope.launch {
+        val s = snapshot.filterNotNull().first()
+        updates.autoCheckIfDue(s.settings.autoCheckUpdates, s.settings.lastUpdateCheckAt) { settings.setLastUpdateCheckAt(it) }
+    }
+
+    // After `updates` exists: the optional daily check, once per app start.
+    init { checkForUpdatesIfDue() }
 
     /** One photo change at a time, so two quick picks can't leave the setting pointing at a deleted file. */
     private val photoLock = kotlinx.coroutines.sync.Mutex()

@@ -15,7 +15,7 @@ data class ScreenshotText(val text: String, val confidence: Int)
 
 /**
  * Reads the text in a payment screenshot on the phone with Tesseract (Apache-2.0), using the English model that ships
- * inside the app. Nothing is uploaded: Leftover has no internet permission. Runs in a second or two on a typical
+ * inside the app. Nothing is uploaded: the reading happens on the phone. Runs in a second or two on a typical
  * screenshot; call it off the main thread.
  */
 object ScreenshotReader {

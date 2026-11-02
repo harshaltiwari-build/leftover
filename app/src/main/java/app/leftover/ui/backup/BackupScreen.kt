@@ -61,7 +61,7 @@ private enum class Asking { NONE, NEW_PASSPHRASE, OPEN_PASSPHRASE }
 
 /**
  * Everything about keeping your data safe: a status you can trust, backing up now or on a schedule, protecting backups with a
- * passphrase, restoring, and moving data in a plain CSV. Nothing here talks to the internet.
+ * passphrase, restoring, and moving data in a plain CSV. Nothing here goes online.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

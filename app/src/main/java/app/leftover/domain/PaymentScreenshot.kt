@@ -50,8 +50,14 @@ object PaymentScreenshotParser {
     private val longId = Regex("""\b([A-Z]{0,3}\d{10,25})\b""")
     private val noise = setOf("google pay", "gpay", "phonepe", "paytm", "bhim", "upi", "completed", "successful", "success", "transaction successful", "payment successful", "share", "done", "view details", "split expense", "banking name", "powered by", "from", "to")
 
-    fun parse(raw: String, today: LocalDate): ScreenshotPayment {
-        val lines = raw.replace(' ', ' ').lines().map { it.trim().replace(Regex("""\s+"""), " ") }.filter { it.isNotEmpty() }
+    /** A receipt is a few dozen short lines. Anything longer is garbage (or an attack) and is cut before any pattern runs on it. */
+    private const val MAX_CHARS = 8_000
+    private const val MAX_LINE = 200
+    private const val MAX_LINES = 150
+
+    fun parse(untrusted: String, today: LocalDate): ScreenshotPayment {
+        val lines = untrusted.take(MAX_CHARS).replace('\u00a0', ' ').lines().map { it.trim().replace(Regex("""\s+"""), " ").take(MAX_LINE) }.filter { it.isNotEmpty() }.take(MAX_LINES)
+        val raw = lines.joinToString("\n")
         val lower = raw.lowercase()
         val received = Regex("""\breceived\s+from\b|\bmoney\s+received\b|\bcredited\b""").containsMatchIn(lower) && !Regex("""\bpaid\s+to\b""").containsMatchIn(lower)
         val status = when {

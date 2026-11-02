@@ -4,7 +4,7 @@ Thanks for helping. Leftover is a small, privacy-first money app, and a few rule
 
 ## Ground rules
 
-1. **Private and offline.** No analytics, ads, crash reporters that phone home, or network calls. The app does not declare the `INTERNET` permission, so a pull request that adds it needs a very strong reason. Dependencies must be open source too: no Google Play services, no closed-source SDKs, so the app can ship on F-Droid.
+1. **Private and offline.** No analytics, ads, crash reporters that phone home, or network calls. The only network use is the update check a person starts (or switches on), so a pull request that adds any other network use needs a very strong reason. Dependencies must be open source too: no Google Play services, no closed-source SDKs, so the app can ship on F-Droid.
 2. **Money maths is tested.** Anything that changes how an amount is counted must come with a unit test in `app/src/test`. Amounts are `Long` paise, never `Double`.
 3. **No decorative controls.** Don't add a switch, button or screen that doesn't do anything yet. Put it in the roadmap instead.
 4. **Accessible by default.** Touch targets are at least 44 dp, text uses the type scale in `ui/theme/Theme.kt`, every icon-only control has a content description, and meaning is never carried by colour alone.

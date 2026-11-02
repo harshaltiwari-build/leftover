@@ -3,7 +3,7 @@
 Leftover is designed so that your financial data stays on your phone.
 
 - **No account, no sign-in, no servers.** There is nothing to log in to and nowhere for the app to send data.
-- **No internet permission.** The app does not declare `INTERNET`, so it cannot send data over the network. Backups are files you save and keep yourself.
+- **One online feature, and it's yours to start.** The app declares `INTERNET` for the update check and nothing else: when you tap **Check for updates** (or switch on the once-a-day check), it asks github.com for the newest release and, if you choose, downloads the update file. The request carries no account, no identifier and nothing about you or your money; GitHub sees your IP address as any website would. The file is checked against the SHA-256 in the release notes and against Leftover's own signing key before Android is asked to install it, and Android asks you to confirm. Your entries and backups never leave the phone: backups are files you save and keep yourself.
 - **No tracking.** No analytics, advertising IDs or third-party SDKs.
 - **Local storage only.** Transactions, accounts, goals, bills and settings are stored in an on-device database. Automatic cloud backup is turned off (`android:allowBackup="false"`).
 - **You control your data.** Export everything as CSV from Settings, or delete everything with one tap.
@@ -12,12 +12,14 @@ Leftover is designed so that your financial data stays on your phone.
 
 | Permission | Why |
 |---|---|
+| `INTERNET` | The update check only: asks github.com for the newest release when you tap **Check for updates** (or switch on the daily check), and downloads the update file if you choose. Nothing about you or your money is sent |
+| `REQUEST_INSTALL_PACKAGES` | Lets Leftover hand a downloaded, verified update to Android's installer. Android still asks you to confirm every install, and you can switch it off in Android settings |
 | `RECORD_AUDIO` | Voice entry, requested only when you tap the mic |
 | `RECEIVE_SMS` | Automatic tracking. Declared in the app but requested at runtime only when you switch **Track from bank texts** on |
 | `READ_SMS` | The one-time **Scan the last 30 days**. Requested only when you tap *Scan now* |
 | `POST_NOTIFICATIONS` | The note shown when a bank text is added or needs you, and the reminders you switch on. Requested the first time you switch one of those on (Android 13+) |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | App lock, through Android's own prompt. Added by the AndroidX Biometric library. Leftover never sees your fingerprint or face, only whether Android said yes |
-| `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`, `ACCESS_NETWORK_STATE` | Added automatically by AndroidX WorkManager, which the home-screen widget library uses to refresh widgets. Leftover does not use them for anything else, and `ACCESS_NETWORK_STATE` only lets Android's scheduler know whether the phone is online. |
+| `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`, `ACCESS_NETWORK_STATE` | Added automatically by AndroidX WorkManager, which the home-screen widget library uses to refresh widgets. Leftover also uses `RECEIVE_BOOT_COMPLETED` to put your reminders back after the phone restarts. It does not use them for anything else, and `ACCESS_NETWORK_STATE` only lets Android's scheduler know whether the phone is online. |
 
 **Notification access** is not a permission in this list. It is a special switch in Android settings, offered only if you turn on *Read UPI app notifications* (see below).
 
@@ -50,7 +52,7 @@ Off by default. When you switch it on, Leftover reads incoming texts so it can a
 
 - **Only named senders.** It looks at a text's body only when it comes from a bank-style sender name such as `AX-HDFCBK`. Texts from phone numbers, which is where your chats come from, are dropped before the body is read. The same rule applies to the optional inbox scan, which reads sender and date first and opens only the bank-style texts.
 - **OTPs are never used.** Any text mentioning an OTP, a verification code or similar is discarded.
-- **The text is not kept.** Only the amount, merchant, date, direction, the last four digits of the account and a short fingerprint (to avoid adding the same text twice) are stored, in the on-device database. Nothing leaves the phone; the app has no `INTERNET` permission. A backup file does not include bank-text senders or waiting items, but transactions that were saved from texts are ordinary transactions and are in it like any other.
+- **The text is not kept.** Only the amount, merchant, date, direction, the last four digits of the account and a short fingerprint (to avoid adding the same text twice) are stored, in the on-device database. Nothing leaves the phone; the only network use in the app is the update check. A backup file does not include bank-text senders or waiting items, but transactions that were saved from texts are ordinary transactions and are in it like any other.
 - **You stay in control.** A spend is saved without asking only when its sender is allowed, its account and merchant are already known, and it reads cleanly. Anything else, and all money coming in, waits in a review queue. Each sender can be switched off, and **Turn off and delete SMS data** removes every transaction that came from texts, the queue and all sender settings. Entries you typed yourself are never touched.
 - **Notifications** show amounts on the shade but only a generic line on the lock screen, and show no amounts at all when Hide balances is on.
 - Android lets you remove the SMS permission at any time in the phone's settings.
@@ -94,7 +96,7 @@ If you switch on **Accept entries from other apps**, a `leftover://capture` link
 
 ## Payment screenshots and receipt photos (v0.6)
 
-- **Sharing a screenshot to Leftover** (from Google Pay, PhonePe, Paytm, your gallery or anywhere with a Share button) reads its text **on the phone** with Tesseract, an open-source text recogniser built into the app with its English model. Nothing is uploaded; the app still has no internet permission. Leftover picks out the amount, who was paid, the date and time and the UPI reference, and opens Quick add for you to check. **Nothing is saved until you tap Save.**
+- **Sharing a screenshot to Leftover** (from Google Pay, PhonePe, Paytm, your gallery or anywhere with a Share button) reads its text **on the phone** with Tesseract, an open-source text recogniser built into the app with its English model. Nothing is uploaded; the reading happens on the phone. Leftover picks out the amount, who was paid, the date and time and the UPI reference, and opens Quick add for you to check. **Nothing is saved until you tap Add** on the screen that shows what was read (unless you've switched on skipping the check, which is off by default).
 - The recognised text itself is not stored, only the fields you save. A temporary full-size copy used for reading is deleted straight after.
 - The screenshot is kept as the entry's **receipt photo**, shrunk, in the app's private folder, where other apps can't see it. Remove it from Quick add or the transaction's page. Photos you remove, or that belong to deleted entries, are cleaned up the next time the app opens.
 - Receipt photos are **not part of backup files**, and **Delete everything** removes them.

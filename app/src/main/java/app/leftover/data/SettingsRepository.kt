@@ -69,6 +69,9 @@ data class Settings(
     val backupFolder: String? = null,
     val backupEveryDays: Int = 7,
     val lastBackupAt: Long = 0,
+    /** Look for a new version once a day. Off until you switch it on: Leftover goes online only when asked. */
+    val autoCheckUpdates: Boolean = false,
+    val lastUpdateCheckAt: Long = 0,
     val lastBackupError: String? = null,
     /** True black behind dark mode, for OLED screens. */
     val pureBlack: Boolean = false,
@@ -133,6 +136,8 @@ class SettingsRepository(private val context: Context) {
         val backupFolder = stringPreferencesKey("backup_folder")
         val backupEveryDays = intPreferencesKey("backup_every_days")
         val lastBackupAt = longPreferencesKey("last_backup_at")
+        val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
+        val lastUpdateCheckAt = longPreferencesKey("last_update_check_at")
         val lastBackupError = stringPreferencesKey("last_backup_error")
         val pureBlack = booleanPreferencesKey("pure_black")
         val dailyLog = booleanPreferencesKey("daily_log")
@@ -181,6 +186,8 @@ class SettingsRepository(private val context: Context) {
         backupFolder = this[Keys.backupFolder],
         backupEveryDays = this[Keys.backupEveryDays] ?: 7,
         lastBackupAt = this[Keys.lastBackupAt] ?: 0L,
+        autoCheckUpdates = this[Keys.autoCheckUpdates] ?: false,
+        lastUpdateCheckAt = this[Keys.lastUpdateCheckAt] ?: 0L,
         lastBackupError = this[Keys.lastBackupError],
         pureBlack = this[Keys.pureBlack] ?: false,
         dailyLog = this[Keys.dailyLog] ?: false,
@@ -223,6 +230,8 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun clear() = context.dataStore.edit { it.clear() }
 
+    suspend fun setAutoCheckUpdates(value: Boolean) = context.dataStore.edit { it[Keys.autoCheckUpdates] = value }
+    suspend fun setLastUpdateCheckAt(at: Long) = context.dataStore.edit { it[Keys.lastUpdateCheckAt] = at }
     suspend fun setAutoSaveScreenshots(value: Boolean) = context.dataStore.edit { it[Keys.autoSaveScreenshots] = value }
 
     /** Only names the photo store made are kept; anything else clears the photo. */

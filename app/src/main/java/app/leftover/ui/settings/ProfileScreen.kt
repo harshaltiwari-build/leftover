@@ -206,7 +206,7 @@ fun ProfileScreen(snapshot: Snapshot, actions: ProfileActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("This profile lives on your phone", style = Type.bodyExtra, color = c.onHero)
                     Text(
-                        "No account, no bank login, no ads. Leftover can't connect to the internet, so your name and numbers go nowhere unless you back them up or export.",
+                        "No account, no bank login, no ads. Leftover only goes online when you check for an update, and sends nothing about you, so your name and numbers go nowhere unless you back them up or export.",
                         style = Type.caption, color = c.onHeroMuted,
                     )
                     if (backedUp == null || backedUp > 30) {

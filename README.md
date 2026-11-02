@@ -13,7 +13,7 @@ Leftover is a free, open-source Android money app for students, first-job earner
 
 **Website:** [harshaltiwari-build.github.io/leftover](https://harshaltiwari-build.github.io/leftover/)
 
-> **Status: early (v0.8.2).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
+> **Status: early (v0.9.0).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
 
 ## What's in v0.8
 
@@ -93,7 +93,7 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first; the sh
 
 ## Privacy
 
-Leftover does not declare the `INTERNET` permission, so it cannot send your data anywhere; it only leaves your phone if you export or back it up to a file yourself. The full list of permissions and why each exists is in [PRIVACY.md](PRIVACY.md).
+Your entries never leave your phone unless you export or back them up to a file yourself. The only online feature is the update check you start (or switch on): the app declares the `INTERNET` permission for that alone, sends nothing about you, and verifies every download before Android is asked to install it. The full list of permissions and why each exists is in [PRIVACY.md](PRIVACY.md).
 
 ## License
 
