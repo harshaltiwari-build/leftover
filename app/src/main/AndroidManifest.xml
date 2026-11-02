@@ -76,6 +76,14 @@
         </receiver>
 
         <receiver android:name=".sms.SmsActionReceiver" android:exported="false" />
+        <receiver android:name=".notify.ReminderAlarmReceiver" android:exported="false" />
+        <!-- Alarms don't survive a restart or an update, so put the daily ones back. Both are system broadcasts. -->
+        <receiver android:name=".notify.ReminderBootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Lets the user hand Leftover the notifications of chosen payment apps. Android asks for this separately in Notification access. -->
         <service
