@@ -31,6 +31,7 @@ object ScreenshotAutoSave {
     /** Bigger payments always ask: a wrong one would matter, and any app can hand Leftover a picture. */
     val MAX_AMOUNT: Paise = rupees(50_000)
 
+
     /** Screenshots saved without asking per day; past this, each one asks, so a flood of images can't fill the books. */
     const val MAX_PER_DAY = 10
 
@@ -68,13 +69,13 @@ object ScreenshotAutoSave {
         )
     }
 
-    private fun savedToday(ledger: Ledger, zone: ZoneId, now: Long): Int {
+    internal fun savedToday(ledger: Ledger, zone: ZoneId, now: Long): Int {
         val day = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         return ledger.transactions.count { it.source == TxSource.SCAN && java.time.Instant.ofEpochMilli(it.createdAt).atZone(zone).toLocalDate() == day }
     }
 
     /** Same amount within a day either side, or the same payment reference anywhere: most likely already logged, maybe from a bank text. */
-    private fun alreadyHave(amount: Paise, date: LocalDate, reference: String, ledger: Ledger, zone: ZoneId): Boolean {
+    internal fun alreadyHave(amount: Paise, date: LocalDate, reference: String, ledger: Ledger, zone: ZoneId): Boolean {
         val ref = reference.filter(Char::isDigit).takeIf { it.length >= 8 }
         return ledger.transactions.any { tx ->
             (ref != null && tx.note.filter(Char::isDigit).contains(ref)) ||
@@ -84,7 +85,7 @@ object ScreenshotAutoSave {
     }
 
     /** The category you last gave this payee; else one whose icon fits the name ("Third Wave Coffee" → Coffee); else Other. */
-    private fun categoryFor(payee: String, ledger: Ledger): Long? {
+    internal fun categoryFor(payee: String, ledger: Ledger): Long? {
         SmsPolicy.categoryFor(payee, ledger.transactions)?.let { return it }
         val expense = ledger.categories.filter { it.kind == CategoryKind.EXPENSE && !it.hidden }
         val key = IconKeys.guess(payee)

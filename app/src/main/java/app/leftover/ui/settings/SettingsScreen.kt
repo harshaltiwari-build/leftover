@@ -227,8 +227,8 @@ fun SettingsScreen(snapshot: Snapshot, actions: SettingsActions) {
                 )
                 Divider()
                 ToggleRow(
-                    "Save payment screenshots by themselves",
-                    "Share a successful payment screenshot to Leftover and it's added, with Undo. Money received, big amounts and anything unclear still ask.",
+                    "Skip the check on clear payment screenshots",
+                    "Normally Leftover shows what it read and waits for you to tap Add. Switch this on and a clear, successful payment is added straight away, with Undo. Money received, big amounts and anything unclear still ask.",
                     s.autoSaveScreenshots, actions.onSetAutoSaveScreenshots,
                 )
             }

@@ -22,6 +22,7 @@ import app.leftover.data.ProfilePhotoStore
 import app.leftover.domain.Pin
 import app.leftover.domain.Money
 import app.leftover.domain.ScreenshotAutoSave
+import app.leftover.domain.ScreenshotProposal
 import app.leftover.ui.add.EntryDraft
 import app.leftover.ui.add.ScreenshotIntake
 import app.leftover.data.ThemeMode
@@ -182,9 +183,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             is ScreenshotAutoSave.Decision.Ask -> {
                 draft = result
-                requestRoute(Routes.addDraft(result.income))
+                // A clear successful payment you made is shown for you to confirm; anything else opens the full form.
+                val offer = ScreenshotProposal.of(shot, s.ledger)
+                if (offer != null) {
+                    _proposal.value = ProposalOffer(offer, result.app)
+                    requestRoute(Routes.CONFIRM_SHOT)
+                } else requestRoute(Routes.addDraft(result.income))
             }
         }
+    }
+
+    /** What a read screenshot offers, waiting on the confirm screen for Add, Edit or Cancel. */
+    data class ProposalOffer(val proposal: ScreenshotProposal, val app: String)
+
+    private val _proposal = MutableStateFlow<ProposalOffer?>(null)
+    val proposal: StateFlow<ProposalOffer?> = _proposal.asStateFlow()
+
+    /** Adds the offered payment, in the category chosen on the confirm screen, with Undo. Once only: a second tap does nothing. */
+    fun addProposal(categoryId: Long?) = viewModelScope.launch {
+        screenshotLock.withLock {
+            val offer = _proposal.value ?: return@withLock
+            _proposal.value = null
+            draft = null
+            val tx = offer.proposal.tx.copy(categoryId = categoryId ?: offer.proposal.tx.categoryId)
+            val id = repository.addTransaction(tx)
+            showToast(Toast("Saved ${Money.format(tx.amount)} · ${tx.merchant.ifBlank { "Payment" }}", "From your screenshot · Undo if it's wrong", id))
+        }
+    }
+
+    /** Leaves the confirm screen without adding anything; Edit keeps the draft for the full form, Cancel drops everything. */
+    fun leaveProposal(keepDraft: Boolean) {
+        _proposal.value = null
+        if (!keepDraft) draft = null
     }
 
     fun setAutoSaveScreenshots(value: Boolean) = run { settings.setAutoSaveScreenshots(value) }

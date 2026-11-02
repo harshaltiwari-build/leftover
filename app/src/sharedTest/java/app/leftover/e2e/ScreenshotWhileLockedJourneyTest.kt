@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ScreenshotWhileLockedJourneyTest : JourneyBase() {
     @Test fun aLockedAppDoesNotSaveByItself() {
-        runBlocking { app.settings.setPin("hash", "salt"); app.settings.setAppLock(true) }
+        runBlocking { app.settings.setPin("hash", "salt"); app.settings.setAppLock(true); app.settings.setAutoSaveScreenshots(true) }
         val read = EntryDraft(false, rupees(480), "Zomato", LocalDate.now(), LocalTime.of(13, 5), "UPI ref 512345678901", null, ScreenshotStatus.SUCCESS, true, "PhonePe")
         launchApp()
         withViewModel { it.handleScreenshot(read) }

@@ -88,8 +88,8 @@ data class Settings(
     val font: AppFont = AppFont.MANROPE,
     /** File name of your profile photo in the app's private folder, or null for your initial. */
     val profilePhoto: String? = null,
-    /** Save a clearly read, successful payment screenshot without asking (with Undo). */
-    val autoSaveScreenshots: Boolean = true,
+    /** Add a clearly read, successful payment screenshot without showing the confirm screen first (with Undo). Off by default. */
+    val autoSaveScreenshots: Boolean = false,
 ) {
     val hasPin: Boolean get() = pinHash != null && pinSalt != null
     val backupProtected: Boolean get() = backupSalt != null && backupWrappedKey != null
@@ -193,7 +193,7 @@ class SettingsRepository(private val context: Context) {
         accent = this[Keys.accent]?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.LIME,
         font = this[Keys.font]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.MANROPE,
         profilePhoto = this[Keys.profilePhoto]?.takeIf(ProfilePhotoStore::isSafeName),
-        autoSaveScreenshots = this[Keys.autoSaveScreenshots] ?: true,
+        autoSaveScreenshots = this[Keys.autoSaveScreenshots] ?: false,
     )
 
     suspend fun completeOnboarding(paydayDay: Int, incomeType: String, usualIncome: Long) {

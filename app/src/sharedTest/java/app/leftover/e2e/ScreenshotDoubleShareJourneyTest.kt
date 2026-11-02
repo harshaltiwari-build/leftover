@@ -19,6 +19,7 @@ import org.junit.runner.RunWith
 class ScreenshotDoubleShareJourneyTest : JourneyBase() {
     @Test fun aDoubleShareSavesOnce() {
         val read = EntryDraft(false, rupees(480), "Zomato", LocalDate.now(), LocalTime.of(13, 5), "UPI ref 512345678901", null, ScreenshotStatus.SUCCESS, true, "PhonePe")
+        runBlocking { app.settings.setAutoSaveScreenshots(true) }
         launchHome()
         withViewModel { it.handleScreenshot(read); it.handleScreenshot(read) }
         waitForText("Saved ₹480 · Zomato")

@@ -57,6 +57,7 @@ import app.leftover.ui.launch.LaunchScreen
 import app.leftover.ui.onboarding.BalanceScreen
 import app.leftover.ui.onboarding.FirstExpenseScreen
 import app.leftover.ui.onboarding.OnboardingDraft
+import app.leftover.ui.add.ConfirmScreenshotScreen
 import app.leftover.ui.onboarding.RhythmScreen
 import app.leftover.ui.onboarding.SetupDoneScreen
 import app.leftover.ui.plan.AddBillScreen
@@ -174,6 +175,20 @@ fun AppNav(viewModel: AppViewModel) {
                 }
 
                 composable(Routes.TIMELINE) { app.leftover.ui.home.TimelineScreen(data, onBack = { nav.popBackStack() }) }
+                composable(Routes.CONFIRM_SHOT) {
+                    val offer by viewModel.proposal.collectAsState()
+                    val shown = offer
+                    // Add, Edit and Cancel clear the offer themselves and navigate; only an offer that was never there
+                    // (such as after the app was restarted) sends us back, so we never go back twice.
+                    var leaving by remember { mutableStateOf(false) }
+                    if (shown == null) { if (!leaving) LaunchedEffect(Unit) { nav.popBackStack() } }
+                    else ConfirmScreenshotScreen(
+                        shown.proposal, shown.app, data.categories.filter { it.kind == app.leftover.data.db.CategoryKind.EXPENSE && !it.hidden }, data.settings.hideBalances,
+                        onAdd = { category -> leaving = true; viewModel.addProposal(category); nav.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
+                        onEdit = { leaving = true; viewModel.leaveProposal(keepDraft = true); nav.navigate(Routes.addDraft(false)) { popUpTo(Routes.CONFIRM_SHOT) { inclusive = true } } },
+                        onCancel = { leaving = true; viewModel.leaveProposal(keepDraft = false); nav.popBackStack() },
+                    )
+                }
                 composable(Routes.HOME) {
                     HomeScreen(
                         snapshot = data,

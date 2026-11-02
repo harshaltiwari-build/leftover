@@ -162,4 +162,81 @@ class PaymentScreenshotTest {
         assertEquals(ScreenshotStatus.SUCCESS, p.status)
         assertEquals("123456789012", p.upiRef)
     }
+
+    // Found on a real phone: recognition reads the big ₹ as "*" ("*1,000"), and in the timeline as "3" ("31,000 was debited").
+    // The masked phone number's last digits ("+91" then "4091") must never be taken for the amount.
+    @Test fun `a star where the rupee sign should be, with phone digits on their own line`() {
+        val text = """
+            \v
+
+            To Rohan Mehta
+
+            +91
+
+            1234
+
+            *1,000
+
+            @ Completed
+
+            31 Oct 2026, 10:32pm
+
+            Example Small Finance Bank 1111
+
+            Payment started
+
+            31,000 was debited
+
+            10:32pm
+
+            31,000 sent to Rohan Mehta
+
+            UPI transaction ID
+
+            123456789012
+
+            To: MEHTA ROHAN S
+
+            ++++11-1@okexample on Google Pay
+
+            From: ASHA SHARMA (Example Small Finance Bank)
+
+            Google transaction ID
+
+            ABCdEfGhIjKlMn
+        """.trimIndent()
+        val p = PaymentScreenshotParser.parse(text, LocalDate.of(2026, 11, 2))
+        assertEquals(rupees(1_000), p.amount)
+        assertEquals("Rohan Mehta", p.payee)
+        assertEquals("123456789012", p.upiRef)
+        assertEquals(ScreenshotStatus.SUCCESS, p.status)
+    }
+
+    @Test fun `a star amount with no other amount lines`() {
+        val p = PaymentScreenshotParser.parse("A\n\nTo Example Traders\n\n*1,800\n\n@ Completed\n\n30 Oct 2026, 9:26am\n\nUPI transaction ID\n\n111122223333", LocalDate.of(2026, 11, 2))
+        assertEquals(rupees(1_800), p.amount)
+        assertEquals("Example Traders", p.payee)
+    }
+
+    @Test fun `phone digits alone are not an amount`() {
+        assertNull(PaymentScreenshotParser.parse("To Rohan Mehta\n+91\n4091\nCompleted\n31 Oct 2026, 10:32pm", LocalDate.of(2026, 11, 2)).amount)
+        assertNull(PaymentScreenshotParser.parse("To Rohan Mehta\n+91 ••••• •4091\n4091\nCompleted", LocalDate.of(2026, 11, 2)).amount)
+    }
+
+    @Test fun `junk marks only count in front of a whole amount line`() {
+        // Masked ids and card numbers are full of stars; they aren't amounts.
+        assertNull(PaymentScreenshotParser.parse("To Rohan\n****1234\n++++51-1@okexample\nCompleted", LocalDate.of(2026, 11, 2)).amount)
+        assertEquals(rupees(250), PaymentScreenshotParser.parse("To Rohan\n@ 250\nCompleted", LocalDate.of(2026, 11, 2)).amount)
+    }
+
+    @Test fun `google pay is named from its own transaction id even when the payee uses another app`() {
+        val p = PaymentScreenshotParser.parse("To Example Traders\n*1,800\nCompleted\nUPI transaction ID\n111122223333\nTo: EXAMPLE TRADERS\n++*11-2@ybl on PhonePe\nFrom: ASHA SHARMA\n++++7-14@okaxis on Google Pay\nGoogle transaction ID\nABCdEfGhIj", LocalDate.of(2026, 11, 2))
+        assertEquals("Google Pay", p.app)
+    }
+
+    // The ₹ misread as "3" on a line that carries it as a marker: the marked big amount wins over the timeline's unmarked ones.
+    @Test fun `a marked amount beats unmarked timeline lines`() {
+        val p = PaymentScreenshotParser.parse("To Example Traders\n*1,000\nCompleted\n31,000 was debited\n31,000 sent to Example Traders", LocalDate.of(2026, 11, 2))
+        assertEquals(rupees(1_000), p.amount)
+    }
 }

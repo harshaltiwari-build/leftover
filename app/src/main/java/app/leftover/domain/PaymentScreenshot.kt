@@ -61,6 +61,8 @@ object PaymentScreenshotParser {
             else -> ScreenshotStatus.UNKNOWN
         }
         val app = when {
+            // Google Pay's own receipts say so even when the person paid is on another app ("…@ybl on PhonePe").
+            "google transaction id" in lower -> "Google Pay"
             "phonepe" in lower -> "PhonePe"
             "paytm" in lower -> "Paytm"
             "google pay" in lower || "gpay" in lower || "g pay" in lower -> "Google Pay"
@@ -80,17 +82,33 @@ object PaymentScreenshotParser {
         )
     }
 
-    /** The amount: the first rupee-marked number, else a line that is only a number (the big display figure). */
+    /**
+     * A whole line that is a number with a stray mark in front: recognition often reads the big ₹ as "*", "@", "®" or "¥".
+     * Only a line of its own counts, so masked ids and card numbers (full of stars) are never amounts.
+     */
+    private val junkMarkedAmount = Regex("""^[*@®¥%&?]\s?($number)\s*$""")
+
+    /** Lines that carry a phone number or an account mask: a bare number right after one is its last digits, not money. */
+    private val phoneOrMask = Regex("""(?i)\+\s?91|[•·]{2,}|\*{2,}|\bx{2,}|a/c|\bmobile\b|\bphone\b""")
+
+    /**
+     * The amount. First choice is a number marked as money: ₹, Rs or INR anywhere in a line, or a junk mark ("*1,000")
+     * in front of a line that is only the number. Those are the big figure at the top of a receipt. Unmarked numbers are
+     * only a last resort, and never the digits that follow a phone number or account mask.
+     */
     fun amount(lines: List<String>): Paise? {
         val skip = Regex("""(?i)\b(?:id|ref|utr|no\.?|a/c|account|xx|\*{2,}|balance|mobile|phone|\+91)\b""")
+        fun ok(p: Paise?) = p?.takeIf { it in 1..CaptureLink.MAX_PAISE }
         val signed = lines.asSequence().filter { !skip.containsMatchIn(it) }
-            .mapNotNull { line -> amountWithSign.find(line)?.groupValues?.get(1) }
-            .mapNotNull(Money::parse).firstOrNull { it in 1..CaptureLink.MAX_PAISE }
+            .mapNotNull { line -> amountWithSign.find(line)?.groupValues?.get(1) }.mapNotNull { ok(Money.parse(it)) }.firstOrNull()
         if (signed != null) return signed
-        return lines.asSequence().filter { !skip.containsMatchIn(it) && !clock.containsMatchIn(it) }
-            .mapNotNull { bareAmountLine.find(it)?.groupValues?.get(1) }
+        val junk = lines.asSequence().mapNotNull { junkMarkedAmount.find(it)?.groupValues?.get(1) }.mapNotNull { ok(Money.parse(it)) }.firstOrNull()
+        if (junk != null) return junk
+        return lines.withIndex().asSequence().filter { (i, line) ->
+            !skip.containsMatchIn(line) && !clock.containsMatchIn(line) && (i == 0 || !phoneOrMask.containsMatchIn(lines[i - 1]))
+        }.mapNotNull { (_, line) -> bareAmountLine.find(line)?.groupValues?.get(1) }
             .filter { it.replace(",", "").substringBefore('.').length in 1..7 }
-            .mapNotNull(Money::parse).firstOrNull { it in 1..CaptureLink.MAX_PAISE }
+            .mapNotNull { ok(Money.parse(it)) }.firstOrNull()
     }
 
     /** The name after "Paid to" / "Received from", on the same line or the next one that looks like a name. */

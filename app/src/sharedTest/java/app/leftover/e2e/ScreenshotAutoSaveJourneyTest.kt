@@ -30,6 +30,7 @@ class ScreenshotAutoSaveJourneyTest : JourneyBase() {
     )
 
     @Test fun aClearScreenshotSavesItselfAndADuplicateAsks() {
+        runBlocking { app.settings.setAutoSaveScreenshots(true) }
         launchHome()
         withViewModel { it.handleScreenshot(read) }
         waitForText("Saved ₹250 · Blue Tokai")

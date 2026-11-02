@@ -17,6 +17,7 @@ object Routes {
     fun add(kind: String) = "add?kind=$kind"
 
     /** Quick add filled in from the screenshot draft the view model is holding. */
+    const val CONFIRM_SHOT = "add/confirm"
     fun addDraft(income: Boolean) = "add?kind=${if (income) "Income" else "Expense"}&draft=true"
     const val VOICE = "voice"
     const val AFFORD = "afford"
