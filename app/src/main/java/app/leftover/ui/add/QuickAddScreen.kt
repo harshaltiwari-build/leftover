@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.asImageBitmap
 import app.leftover.data.db.TemplateEntity
 import androidx.compose.foundation.background
+import app.leftover.ui.components.Divider
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -172,7 +174,7 @@ fun QuickAddScreen(
             Segmented(kinds, kind, { kind = it; categoryId = null }, Modifier.weight(1f))
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(10.dp))
             AmountDisplay(digits, sign = if (kind == "Income") "+" else if (kind == "Expense" && digits.isNotEmpty()) "−" else "", signColor = if (kind == "Income") c.positive else c.muted)
             Spacer(Modifier.height(8.dp))
             val hidden = snapshot.settings.hideBalances
@@ -187,7 +189,7 @@ fun QuickAddScreen(
                 style = Type.captionBold, color = if (over) c.emberText else c.ink,
                 modifier = Modifier.align(Alignment.CenterHorizontally).clip(Radius.pill).background(if (over) c.emberBg else c.track).padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(14.dp))
             if (kind == "Expense" && snapshot.templates.isNotEmpty()) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(snapshot.templates, key = { it.id }) { t ->
@@ -210,7 +212,11 @@ fun QuickAddScreen(
                 Spacer(Modifier.height(12.dp))
             }
             if (needsCategory) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // One line you swipe along, instead of four wrapped lines: the whole form then fits above the keypad.
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     categories.forEach { cat -> Chip(cat.name, categoryId == cat.id, { categoryId = cat.id }, icon = LeftoverIcons.forKey(cat.icon)) }
                     Chip("New", false, { newCategory = if (newCategory == null) "" else null }, icon = LeftoverIcons.Plus, dashed = true)
                 }
@@ -227,14 +233,16 @@ fun QuickAddScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(14.dp))
-            AccountRow(if (kind == "Transfer") "From" else if (kind == "Income") "Received in" else "Paid from", spendAccounts.map { it.id to it.name }, fromAccount?.id) { accountId = it }
-            if (kind == "Transfer") {
-                Spacer(Modifier.height(10.dp))
-                AccountRow("To", spendAccounts.filter { it.id != fromAccount?.id }.map { it.id to it.name }, toAccount?.id) { toAccountId = it }
+            Spacer(Modifier.height(12.dp))
+            // Account and date share one card: a label column on the left, the same edges as the fields below.
+            Column(Modifier.fillMaxWidth().clip(Radius.lg).background(c.surface).border(1.dp, c.hairline, Radius.lg).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AccountRow(if (kind == "Transfer") "From" else if (kind == "Income") "Received in" else "Paid from", spendAccounts.map { it.id to it.name }, fromAccount?.id) { accountId = it }
+                if (kind == "Transfer") {
+                    AccountRow("To", spendAccounts.filter { it.id != fromAccount?.id }.map { it.id to it.name }, toAccount?.id) { toAccountId = it }
+                }
+                Divider()
+                DateStrip(daysAgo, onPick = { daysAgo = it }, onOther = { pickingDate = true })
             }
-            Spacer(Modifier.height(10.dp))
-            DateStrip(daysAgo, onPick = { daysAgo = it }, onOther = { pickingDate = true })
             if (pickingDate) {
                 val todayUtc = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
                 val state = androidx.compose.material3.rememberDatePickerState(
@@ -257,10 +265,10 @@ fun QuickAddScreen(
                     dismissButton = { androidx.compose.material3.TextButton(onClick = { pickingDate = false }) { Text("Cancel") } },
                 ) { androidx.compose.material3.DatePicker(state = state) }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             NoteField(note) { note = it }
             if (kind != "Transfer") {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 ScreenshotRow(
                     receipt, scanned, reading, amount, ledger,
                     onReading = { reading = it }, onRead = ::apply,
@@ -268,12 +276,14 @@ fun QuickAddScreen(
                 )
             }
             if (kind != "Transfer") {
-                Spacer(Modifier.height(12.dp))
-                Text("Tags", style = Type.captionBold, color = c.muted)
                 Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Label and chips on one line, with the label in the same column as "Paid from".
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tags", style = Type.captionBold, color = c.muted, modifier = Modifier.width(78.dp).padding(start = 4.dp))
+                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     snapshot.tags.forEach { tag -> Chip("#${tag.name}", tag.id in tagIds, { tagIds = if (tag.id in tagIds) tagIds - tag.id else tagIds + tag.id }, role = androidx.compose.ui.semantics.Role.Checkbox) }
                     Chip(if (newTag == null) "New tag" else "Cancel", false, { newTag = if (newTag == null) "" else null }, icon = if (newTag == null) LeftoverIcons.Plus else null)
+                }
                 }
                 newTag?.let { name ->
                     Spacer(Modifier.height(8.dp))
@@ -337,7 +347,7 @@ private fun AccountRow(label: String, options: List<Pair<Long, String>>, selecte
     val c = Leftover.colors
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = Type.captionBold, color = c.muted, modifier = Modifier.width(78.dp))
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { (id, name) -> Chip(name, id == selectedId, { onSelect(id) }, icon = LeftoverIcons.forKey(if (name.contains("cash", true)) "cash" else if (name.contains("card", true)) "card" else "bank")) }
         }
     }
