@@ -195,6 +195,7 @@ fun AppNav(viewModel: AppViewModel) {
                         onToggleHide = { viewModel.setHideBalances(!data.settings.hideBalances) },
                         onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                         onOpenBills = { nav.switchTab(Routes.BILLS) },
+                        onOpenReminders = { nav.navigate(Routes.REMINDERS) },
                         onOpenBreakdown = { nav.navigate(Routes.LEFT) },
                         onOpenAfford = { nav.navigate(Routes.AFFORD) },
                         onOpenInsights = { nav.switchTab(Routes.INSIGHTS) },

@@ -13,7 +13,7 @@ Leftover is a free, open-source Android money app for students, first-job earner
 
 **Website:** [harshaltiwari-build.github.io/leftover](https://harshaltiwari-build.github.io/leftover/)
 
-> **Status: early (v0.9.0).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
+> **Status: early (v0.9.1).** The core app works end to end. See the [roadmap](ROADMAP.md) for what's next.
 
 ## What's in v0.8
 

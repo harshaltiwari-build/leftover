@@ -102,6 +102,7 @@ fun HomeScreen(
     onOpenUpdate: () -> Unit = {},
     onOpenSplit: () -> Unit = {},
     onOpenPlan: () -> Unit = onOpenBills,
+    onOpenReminders: () -> Unit = {},
 ) {
     val c = Leftover.colors
     val ledger = snapshot.ledger
@@ -114,7 +115,7 @@ fun HomeScreen(
         Modifier.fillMaxSize().background(c.ground).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Header(snapshot, onToggleHide, onOpenProfile, onOpenBills)
+        Header(snapshot, onToggleHide, onOpenProfile, onOpenReminders)
         if (updateVersion != null) {
             Banner("Leftover $updateVersion is available", c.lime, c.onLime, trailing = "Update", onClick = onOpenUpdate)
         }
@@ -149,7 +150,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: () -> Unit, onOpenBills: () -> Unit) {
+private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: () -> Unit, onOpenReminders: () -> Unit) {
     val c = Leftover.colors
     val hidden = snapshot.settings.hideBalances
     val name = snapshot.settings.name.ifBlank { "there" }
@@ -166,7 +167,7 @@ private fun Header(snapshot: Snapshot, onToggleHide: () -> Unit, onOpenProfile: 
         IconTile(if (hidden) LeftoverIcons.EyeOff else LeftoverIcons.Eye, onToggleHide, if (hidden) "Show balances" else "Hide balances")
         val dueSoon = snapshot.bills.count { snapshot.ledger.billNextDue(it) <= snapshot.today.plusDays(2) }
         Box {
-            IconTile(LeftoverIcons.Bell, onOpenBills, if (dueSoon > 0) "Bills, $dueSoon due soon" else "Bills")
+            IconTile(LeftoverIcons.Bell, onOpenReminders, if (dueSoon > 0) "Reminders, $dueSoon bills due soon" else "Reminders")
             if (dueSoon > 0) Box(Modifier.align(Alignment.TopEnd).padding(top = 9.dp, end = 10.dp).size(9.dp).clip(Radius.pill).background(c.ember))
         }
     }
